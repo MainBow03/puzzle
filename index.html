@@ -16,7 +16,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Firebase -->
-    <!-- Nota: Usiamo le versioni CDN per il file HTML singolo -->
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
@@ -29,8 +28,8 @@
             font-family: 'Poppins', sans-serif;
             background-color: #0f172a;
             color: #e2e8f0;
-            overflow: hidden;
-            touch-action: none;
+            overflow: hidden; 
+            touch-action: none; 
             user-select: none;
         }
 
@@ -47,9 +46,9 @@
         }
 
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 3px; }
 
         .glass-panel {
             background: rgba(30, 41, 59, 0.9);
@@ -87,7 +86,6 @@
         const db = getFirestore(app);
         const analytics = getAnalytics(app);
         
-        // Uso il Project ID come identificativo dell'app nel DB per coerenza
         const appId = "puzzle-multiplayer-89920"; 
 
         // --- Data ---
@@ -159,8 +157,6 @@
 
             React.useEffect(() => {
                 const initAuth = async () => {
-                    // Controlla se c'è un token personalizzato (usato negli ambienti di test AI)
-                    // Altrimenti usa signInAnonymously standard di Firebase
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          try {
                              await signInWithCustomToken(auth, __initial_auth_token);
@@ -381,6 +377,9 @@
         }
 
         const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
+            // SAFEGUARD: If shape is undefined, return null to avoid crash
+            if (!shape) return null;
+
             const unitW = 100;
             const unitH = 100;
             const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
@@ -391,24 +390,27 @@
             const id = `p-${row}-${col}-${isPlaced ? 'placed' : 'bank'}`;
 
             return (
-                <svg viewBox={`-25 -25 ${unitW+50} ${unitH+50}`} className="w-full h-full" style={{ overflow: 'visible' }}>
+                <svg viewBox={`-25 -25 ${unitW+50} ${unitH+50}`} className="w-full h-full" style={{ overflow: 'visible', pointerEvents: 'none' }}>
                     <defs><clipPath id={`clip-${id}`}><path d={pathData} /></clipPath></defs>
                     <g clipPath={`url(#clip-${id})`}>
                         <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
-                        {/* 3D Bevel/Highlight effect */}
                         <path d={pathData} fill="white" fillOpacity="0.15" transform="translate(-1,-1)" />
                         <path d={pathData} fill="black" fillOpacity="0.2" transform="translate(1,1)" />
                     </g>
-                    {/* Clearer Border for "Piece" look */}
                     <path d={pathData} fill="none" stroke="#222" strokeWidth="1" strokeOpacity="0.8" />
                 </svg>
             );
         };
 
         function GameRoom({ room, user, nickname, roomId, appId }) {
-            if (!room) return <div className="text-white text-center mt-20">Caricamento...</div>;
+            // SAFEGUARD: Ensure room and config exist
+            if (!room || !room.config) return <div className="text-white text-center mt-20">Caricamento...</div>;
+            
             const config = room.config;
             const diff = DIFFICULTIES[config.difficultyIdx];
+
+            // SAFEGUARD: Ensure difficulty is valid
+            if (!diff) return <div className="text-white text-center mt-20">Errore Configurazione</div>;
             
             // --- State Refactoring for Free Movement ---
             // bankPieces: IDs of pieces currently in the bank
@@ -419,6 +421,7 @@
             const [timer, setTimer] = React.useState(0);
             const [showHelper, setShowHelper] = React.useState(false);
             const [helperCooldown, setHelperCooldown] = React.useState(0);
+            const [magicCooldown, setMagicCooldown] = React.useState(0);
             
             // Reference to all generated pieces to retrieve shape info
             const allPiecesRef = React.useRef({});
@@ -430,7 +433,6 @@
                 const allP = {};
                 const allShapes = {};
 
-                // Generate Shapes Grid
                 for(let r=0; r<diff.rows; r++) {
                     for(let c=0; c<diff.cols; c++) {
                         let top=0, bottom=0, left=0, right=0;
@@ -466,6 +468,13 @@
                     return () => clearInterval(i);
                 }
             }, [helperCooldown]);
+            
+            React.useEffect(() => {
+                if(magicCooldown > 0) {
+                    const i = setInterval(() => setMagicCooldown(c => c - 1), 1000);
+                    return () => clearInterval(i);
+                }
+            }, [magicCooldown]);
             
             // 3. Victory Check & Progress Sync
             React.useEffect(() => {
@@ -518,9 +527,11 @@
             }, [boardState]);
 
             // --- Mechanics ---
+            
+            // Custom Drag State
+            const [dragState, setDragState] = React.useState(null);
 
             const handleDragStart = (e, pieceId, source, slotIndex = null) => {
-                // Source: 'bank' or 'board'
                 e.dataTransfer.setData("pieceId", pieceId);
                 e.dataTransfer.setData("source", source);
                 if (source === 'board') e.dataTransfer.setData("srcSlot", slotIndex);
@@ -534,6 +545,7 @@
                 if (isNaN(pieceId)) return;
                 
                 const pieceObj = allPiecesRef.current[pieceId];
+                if (!pieceObj) return;
 
                 // If dropping on a slot that already has a piece?
                 if (boardState[targetSlotIndex]) return; // Occupied!
@@ -559,6 +571,7 @@
                 const pieceId = parseInt(e.dataTransfer.getData("pieceId"));
                 const source = e.dataTransfer.getData("source");
                 
+                if (isNaN(pieceId)) return;
                 if (source === 'bank') return; // Already there
 
                 // Add to bank
@@ -573,10 +586,114 @@
                 });
             };
 
-            const myPlayer = room.players.find(p => p.uid === user.uid);
-            const isFinished = myPlayer?.finished;
+            // --- Touch Handlers (Custom Drag) ---
+            const handleTouchStart = (e, pieceId, source, slotIndex = null) => {
+                e.stopPropagation(); 
+                const touch = e.touches[0];
+                setDragState({
+                    pieceId,
+                    source,
+                    srcSlot: slotIndex,
+                    x: touch.clientX,
+                    y: touch.clientY
+                });
+            };
 
-            if (isFinished) {
+            const handleTouchMove = (e) => {
+                if (!dragState) return;
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                setDragState(prev => ({ ...prev, x: touch.clientX, y: touch.clientY }));
+            };
+
+            const handleTouchEnd = (e) => {
+                if (!dragState) return;
+                
+                // Find what's under the finger
+                const touch = e.changedTouches[0];
+                const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+                
+                // Traverse up to find a slot or bank
+                let current = targetEl;
+                while (current) {
+                    if (current.dataset && current.dataset.slotIndex !== undefined) {
+                        const idx = parseInt(current.dataset.slotIndex);
+                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', idx);
+                        break;
+                    }
+                    if (current.id === 'piece-bank') {
+                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
+                        break;
+                    }
+                    current = current.parentElement;
+                }
+
+                setDragState(null);
+            };
+
+            // Logic to perform the drop
+            const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
+                 const pieceObj = allPiecesRef.current[pieceId];
+                 if (!pieceObj) return;
+                 
+                 // Drop on Slot
+                 if (targetType === 'slot') {
+                     if (boardState[targetIndex]) return; // Occupied
+                     
+                     setBoardState(prev => ({ ...prev, [targetIndex]: pieceObj }));
+                     if (source === 'bank') {
+                         setBankPieces(prev => prev.filter(id => id !== pieceId));
+                     } else if (source === 'board') {
+                         setBoardState(prev => {
+                             const newState = { ...prev, [targetIndex]: pieceObj };
+                             delete newState[srcSlot];
+                             return newState;
+                         });
+                     }
+                 } 
+                 // Drop on Bank
+                 else if (targetType === 'bank') {
+                     if (source === 'bank') return; // Already there
+                     setBankPieces(prev => [...prev, pieceId]);
+                     setBoardState(prev => {
+                         const newState = { ...prev };
+                         delete newState[srcSlot];
+                         return newState;
+                     });
+                 }
+            };
+            
+            const useMagic = () => {
+                if (magicCooldown > 0 || bankPieces.length === 0) return;
+                
+                // Pick random piece from bank
+                const randomIndex = Math.floor(Math.random() * bankPieces.length);
+                const pieceId = bankPieces[randomIndex];
+                const piece = allPiecesRef.current[pieceId];
+                
+                if (!piece) return;
+
+                // Move to board at correct index
+                setBoardState(prev => {
+                    // Check if correct spot is occupied (it shouldn't be if piece is in bank, unless logic error, or user put wrong piece there)
+                    // If wrong piece is there, we kick it back to bank? Or just overwrite?
+                    // Let's swap if needed or just kick out.
+                    const existing = prev[piece.correctIndex];
+                    if (existing) {
+                        // Kick existing wrong piece back to bank
+                        setBankPieces(b => [...b, existing.id]);
+                    }
+                    return { ...prev, [piece.correctIndex]: piece };
+                });
+                
+                setBankPieces(prev => prev.filter(id => id !== pieceId));
+                setMagicCooldown(120);
+            };
+
+
+            const myPlayer = room.players.find(p => p.uid === user.uid);
+
+            if (myPlayer?.finished) {
                 return (
                     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
                         <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl z-10 relative">
@@ -586,10 +703,6 @@
                             <p className="text-center text-gray-400 mb-8">Tempo: <span className="text-white font-mono">{formatTime(timer)}</span></p>
 
                             <div className="bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700">
-                                <div className="p-4 bg-slate-800 border-b border-slate-700 font-bold text-gray-400 flex justify-between">
-                                    <span>Classifica</span>
-                                    <span>Tempo</span>
-                                </div>
                                 {room.rankings.sort((a,b) => a.time - b.time).map((r, idx) => (
                                     <div key={r.uid} className={`p-4 flex justify-between items-center ${r.uid === user.uid ? 'bg-indigo-500/20' : 'border-b border-slate-700/50'}`}>
                                         <div className="flex items-center gap-4">
@@ -600,18 +713,43 @@
                                     </div>
                                 ))}
                             </div>
-                            
-                            <div className="mt-8 text-center">
-                                <p className="text-sm text-gray-500 mb-4">In attesa degli altri giocatori...</p>
-                                <button onClick={() => window.location.reload()} className="py-2 px-6 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-bold transition">Esci</button>
-                            </div>
+                            <button onClick={() => window.location.reload()} className="mt-8 w-full py-2 px-6 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-bold transition">Esci</button>
                         </div>
                     </div>
                 );
             }
 
             return (
-                <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen">
+                <div 
+                    className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen"
+                    // Add global touch move/end listeners to handle dragging outside initial container
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    {/* Ghost Piece for Touch Dragging */}
+                    {dragState && allPiecesRef.current[dragState.pieceId] && (
+                        <div 
+                            style={{ 
+                                position: 'fixed', 
+                                left: dragState.x, 
+                                top: dragState.y, 
+                                width: '80px', 
+                                height: '80px', 
+                                transform: 'translate(-50%, -50%)', 
+                                pointerEvents: 'none', 
+                                zIndex: 9999 
+                            }}
+                        >
+                            <PuzzlePieceSVG 
+                                shape={allPiecesRef.current[dragState.pieceId].shape} 
+                                imageUrl={config.imageUrl}
+                                row={allPiecesRef.current[dragState.pieceId].row} 
+                                col={allPiecesRef.current[dragState.pieceId].col} 
+                                cols={diff.cols} rows={diff.rows} isPlaced={false}
+                            />
+                        </div>
+                    )}
+
                     {showHelper && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-8" onClick={() => setShowHelper(false)}>
                             <img src={config.imageUrl} className="max-w-full max-h-full rounded shadow-2xl" />
@@ -619,47 +757,38 @@
                     )}
 
                     {/* Sidebar */}
-                    <div className="w-full md:w-80 bg-slate-800 flex flex-col border-r border-slate-700 z-20 shadow-2xl relative">
-                        <div className="p-4 border-b border-slate-700 bg-slate-800">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="font-bold text-white">Puzzle Battle</h2>
-                                <div className="font-mono text-yellow-400 text-xl font-bold bg-black/30 px-3 py-1 rounded">{formatTime(timer)}</div>
+                    <div className="w-full md:w-80 bg-slate-800 flex flex-col border-b md:border-r border-slate-700 z-20 shadow-2xl relative flex-shrink-0 max-h-[35vh] md:max-h-full md:h-full">
+                        <div className="p-2 md:p-4 border-b border-slate-700 bg-slate-800 flex justify-between items-center md:block">
+                            <div className="md:mb-4">
+                                <h2 className="font-bold text-white text-sm md:text-base">Puzzle Battle</h2>
+                                <div className="font-mono text-yellow-400 font-bold text-sm">{formatTime(timer)}</div>
                             </div>
                             
-                            <div className="space-y-2 mb-4 bg-slate-900/50 p-3 rounded-xl">
-                                {room.players.sort((a,b) => b.progress - a.progress).map(p => (
-                                    <div key={p.uid} className={`flex justify-between items-center text-sm ${p.uid === user.uid ? 'text-white font-bold' : 'text-gray-400'}`}>
-                                        <div className="flex items-center gap-2">
-                                            {p.finished && <span className="text-yellow-500">👑</span>}
-                                            <span className="truncate w-24">{p.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                                <div className={`h-full ${p.finished ? 'bg-yellow-500' : 'bg-green-500'}`} style={{width: `${p.progress}%`}}></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {config.showReference && (
-                                <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(20); }, 5000); }}} 
-                                    disabled={helperCooldown > 0} 
-                                    className={`w-full py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2 ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
-                                    {helperCooldown > 0 ? `Attendi ${helperCooldown}s` : <><span>👁</span> Vedi Immagine</>}
+                            <div className="flex gap-2">
+                                {config.showReference && (
+                                    <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(20); }, 5000); }}} 
+                                        disabled={helperCooldown > 0} 
+                                        className={`py-1 px-3 md:py-2 md:w-full rounded-lg font-bold text-xs md:text-sm transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+                                        {helperCooldown > 0 ? `${helperCooldown}s` : "👁 Img"}
+                                    </button>
+                                )}
+                                <button onClick={useMagic}
+                                    disabled={magicCooldown > 0 || bankPieces.length === 0} 
+                                    className={`py-1 px-3 md:py-2 md:w-full rounded-lg font-bold text-xs md:text-sm transition md:mt-2 ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 hover:bg-purple-500 text-white'}`}>
+                                    {magicCooldown > 0 ? `${magicCooldown}s` : "🪄 Magic"}
                                 </button>
-                            )}
+                            </div>
                         </div>
                         
-                        {/* Piece Bank (Droppable) */}
+                        {/* Piece Bank (Droppable & Touch Aware) */}
                         <div 
+                            id="piece-bank"
                             className="flex-1 overflow-y-auto bg-slate-900/80 p-2 custom-scrollbar transition-colors"
                             onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = '#1e293b'; }}
                             onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
                             onDrop={(e) => { e.currentTarget.style.backgroundColor = ''; handleDropOnBank(e); }}
                         >
-                             <p className="text-center text-xs text-gray-600 mb-2 uppercase tracking-widest">Banca Pezzi</p>
-                             <div className="grid grid-cols-2 gap-2 pb-20">
+                             <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-20">
                                 {bankPieces.map((id) => {
                                     const p = allPiecesRef.current[id];
                                     if(!p) return null;
@@ -668,7 +797,8 @@
                                             key={id}
                                             draggable
                                             onDragStart={(e) => handleDragStart(e, id, 'bank')}
-                                            className="aspect-square puzzle-piece-container relative p-2"
+                                            onTouchStart={(e) => handleTouchStart(e, id, 'bank')}
+                                            className="aspect-square puzzle-piece-container relative p-0.5"
                                         >
                                             <PuzzlePieceSVG 
                                                 shape={p.shape} imageUrl={config.imageUrl}
@@ -682,11 +812,18 @@
                     </div>
 
                     {/* Main Board Area */}
-                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-4 overflow-hidden relative select-none">
+                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-2 md:p-4 overflow-hidden relative select-none">
                         
-                        <div className="relative shadow-2xl ring-1 ring-slate-800 rounded bg-black"
-                            style={{ width: 'min(90vw, 90vh)', aspectRatio: `${diff.cols}/${diff.rows}` }}>
-                            
+                        <div 
+                            className="relative shadow-2xl rounded bg-slate-900/50"
+                            style={{ 
+                                width: '100%', 
+                                maxWidth: '95vh',
+                                aspectRatio: `${diff.cols}/${diff.rows}`,
+                                maxHeight: '90%',
+                                objectFit: 'contain'
+                            }}
+                        >
                             {/* The Grid Slots */}
                             <div className="w-full h-full relative">
                                 {Array.from({ length: diff.pieces }).map((_, index) => {
@@ -697,18 +834,19 @@
                                     return (
                                         <div 
                                             key={index}
+                                            data-slot-index={index} // Helper for Touch Logic
                                             onDragOver={(e) => { if(!placedPiece) e.preventDefault(); }}
                                             onDrop={(e) => handleDropOnSlot(e, index)}
-                                            className="absolute border border-white/5 box-border"
+                                            className="absolute box-border flex items-center justify-center"
                                             style={{
                                                 top: `${(r/diff.rows)*100}%`, left: `${(c/diff.cols)*100}%`,
                                                 width: `${100/diff.cols}%`, height: `${100/diff.rows}%`,
                                                 zIndex: placedPiece ? 10 : 1
                                             }}
                                         >
-                                            {/* Droppable Area Indicator (Faint) */}
+                                            {/* Minimalist guide dot */}
                                             {!placedPiece && (
-                                                <div className="w-full h-full opacity-0 hover:opacity-100 bg-white/5 transition-opacity duration-200"></div>
+                                                <div className="w-1 h-1 bg-white/10 rounded-full"></div>
                                             )}
                                             
                                             {placedPiece && (
@@ -716,6 +854,7 @@
                                                     className="absolute animate-pop" 
                                                     draggable
                                                     onDragStart={(e) => handleDragStart(e, placedPiece.id, 'board', index)}
+                                                    onTouchStart={(e) => handleTouchStart(e, placedPiece.id, 'board', index)}
                                                     style={{
                                                         top: '-25%', left: '-25%', width: '150%', height: '150%', 
                                                         filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.5))',
