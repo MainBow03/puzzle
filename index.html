@@ -40,9 +40,8 @@
         }
         .puzzle-piece-container:active {
             cursor: grabbing;
-            transform: scale(1.05);
+            transform: scale(1.1);
             z-index: 100 !important;
-            filter: drop-shadow(0 8px 6px rgb(0 0 0 / 0.6));
         }
 
         /* Custom Scrollbar */
@@ -57,7 +56,13 @@
         }
         
         .animate-pop { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        .slot-highlight {
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -69,7 +74,6 @@
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, arrayUnion, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
-        // --- Configuration ---
         const firebaseConfig = {
             apiKey: "AIzaSyC6soOuVKv26G5gW1VicGAqsCknHA27kiU",
             authDomain: "puzzle-multiplayer-89920.firebaseapp.com",
@@ -80,15 +84,12 @@
             measurementId: "G-G8F8QCPFPH"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const analytics = getAnalytics(app);
-        
         const appId = "puzzle-multiplayer-89920"; 
 
-        // --- Data ---
         const IMAGES = [
             { id: 1, name: "Ariana Grande", url: "https://i.pinimg.com/736x/81/6e/fd/816efd9a00896efe89fd950f75b3f8d3.jpg" },
             { id: 2, name: "Famiglia Watterson", url: "https://i.pinimg.com/736x/02/be/93/02be937944bca9b29d421287bcf7797a.jpg" },
@@ -100,58 +101,30 @@
             { id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" }
         ];
 
-        // Ribilanciamento per formati rettangolari (Landscape/Portrait standard)
         const DIFFICULTIES = [
             { label: "Facile", pieces: 12, cols: 4, rows: 3 },     
             { label: "Normale", pieces: 24, cols: 6, rows: 4 },    
             { label: "Avanzato", pieces: 30, cols: 6, rows: 5 },   
-            { label: "Difficile", pieces: 48, cols: 8, rows: 6 }   
+            { label: "Difficile", pieces: 48, cols: 8, rows: 6 },
+            { label: "Malvagia", pieces: 80, cols: 10, rows: 8 }
         ];
 
-        // --- Jigsaw Logic ---
         const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
-            const tabSize = Math.min(width, height) * 0.22; 
+            const tabSize = Math.min(width, height) * 0.25; 
             const w = width;
             const h = height;
             let path = `M 0 0`;
-            
-            const t = topTab || 0;
-            const r = rightTab || 0;
-            const b = bottomTab || 0;
-            const l = leftTab || 0;
-            
-            // Top
+            const t = topTab || 0; const r = rightTab || 0; const b = bottomTab || 0; const l = leftTab || 0;
             if (t === 0) path += ` L ${w} 0`;
-            else {
-                path += ` L ${w * 0.4} 0`;
-                path += ` C ${w * 0.4} ${t * tabSize * -1}, ${w * 0.6} ${t * tabSize * -1}, ${w * 0.6} 0`;
-                path += ` L ${w} 0`;
-            }
-            // Right
+            else { path += ` L ${w * 0.35} 0`; path += ` C ${w * 0.35} ${t * tabSize * -1}, ${w * 0.65} ${t * tabSize * -1}, ${w * 0.65} 0`; path += ` L ${w} 0`; }
             if (r === 0) path += ` L ${w} ${h}`;
-            else {
-                path += ` L ${w} ${h * 0.4}`;
-                path += ` C ${w + r * tabSize} ${h * 0.4}, ${w + r * tabSize} ${h * 0.6}, ${w} ${h * 0.6}`;
-                path += ` L ${w} ${h}`;
-            }
-            // Bottom
+            else { path += ` L ${w} ${h * 0.35}`; path += ` C ${w + r * tabSize} ${h * 0.35}, ${w + r * tabSize} ${h * 0.65}, ${w} ${h * 0.65}`; path += ` L ${w} ${h}`; }
             if (b === 0) path += ` L 0 ${h}`;
-            else {
-                path += ` L ${w * 0.6} ${h}`;
-                path += ` C ${w * 0.6} ${h + b * tabSize}, ${w * 0.4} ${h + b * tabSize}, ${w * 0.4} ${h}`;
-                path += ` L 0 ${h}`;
-            }
-            // Left
+            else { path += ` L ${w * 0.65} ${h}`; path += ` C ${w * 0.65} ${h + b * tabSize}, ${w * 0.35} ${h + b * tabSize}, ${w * 0.35} ${h}`; path += ` L 0 ${h}`; }
             if (l === 0) path += ` L 0 0`;
-            else {
-                path += ` L 0 ${h * 0.6}`;
-                path += ` C ${l * tabSize * -1} ${h * 0.6}, ${l * tabSize * -1} ${h * 0.4}, 0 ${h * 0.4}`;
-                path += ` L 0 0`;
-            }
+            else { path += ` L 0 ${h * 0.65}`; path += ` C ${l * tabSize * -1} ${h * 0.65}, ${l * tabSize * -1} ${h * 0.35}, 0 ${h * 0.35}`; path += ` L 0 0`; }
             return path;
         };
-
-        // --- Components ---
 
         function App() {
             const [user, setUser] = React.useState(null);
@@ -164,15 +137,9 @@
             React.useEffect(() => {
                 const initAuth = async () => {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                         try {
-                             await signInWithCustomToken(auth, __initial_auth_token);
-                         } catch(e) {
-                             console.log("Fallback to anonymous due to token error", e);
-                             await signInAnonymously(auth);
-                         }
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                         try { await signInWithCustomToken(auth, __initial_auth_token); } 
+                         catch(e) { await signInAnonymously(auth); }
+                    } else { await signInAnonymously(auth); }
                 };
                 initAuth();
                 return onAuthStateChanged(auth, (u) => { if (u) { setUser(u); setView("login"); } });
@@ -185,12 +152,7 @@
                         const data = docSnap.data();
                         setRoomData(data);
                         if (data.status === 'playing' && view === 'room') setView('game');
-                    } else {
-                        setError("Stanza chiusa."); setView("lobby"); setRoomId(null);
-                    }
-                }, (err) => {
-                    console.error("Firestore error:", err);
-                    setError("Errore di connessione o permessi.");
+                    } else { setError("Stanza chiusa."); setView("lobby"); setRoomId(null); }
                 });
                 return () => unsub();
             }, [roomId, user, view]);
@@ -202,8 +164,7 @@
                 const initialData = {
                     id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
                     players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null }],
-                    rankings: [],
-                    createdAt: new Date().toISOString()
+                    rankings: [], createdAt: new Date().toISOString()
                 };
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
                 setRoomId(newRoomId); setRoomData(initialData); setView("room");
@@ -216,17 +177,13 @@
                     if (!snap.exists()) { setError("Stanza non trovata!"); return; }
                     const data = snap.data();
                     if (data.status !== 'waiting') { setError("Partita già iniziata!"); return; }
-                    
                     if (!data.players.find(p => p.uid === user.uid)) {
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
                             players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null })
                         });
                     }
                     setRoomId(rId); setView("room");
-                } catch(e) {
-                    console.error("Join error:", e);
-                    setError("Errore durante l'accesso.");
-                }
+                } catch(e) { setError("Errore durante l'accesso."); }
             };
 
             const startGame = async () => {
@@ -234,7 +191,7 @@
                 setView("game");
             };
 
-            if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white">Caricamento...</div>;
+            if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white text-2xl font-bold animate-pulse">Caricamento...</div>;
             if (view === "login") return <LoginScreen nickname={nickname} setNickname={setNickname} onEnter={handleLogin} />;
             if (view === "lobby") return <LobbyScreen onCreate={createRoom} onJoin={joinRoom} error={error} />;
             if (view === "room") return <WaitingRoom room={roomData} user={user} onStart={startGame} />;
@@ -273,7 +230,7 @@
                     </div>
                     {error && <div className="max-w-md mx-auto bg-red-500/20 border border-red-500 text-red-100 p-4 rounded-xl mb-6 text-center">{error}</div>}
                     
-                    {mode === 'menu' && (
+                    {mode === 'menu' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mt-10">
                             <button onClick={() => setMode('create')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
                                 <div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">🧩</div>
@@ -284,17 +241,13 @@
                                 <h3 className="text-2xl font-bold">Unisciti</h3>
                             </button>
                         </div>
-                    )}
-
-                    {mode === 'join' && (
+                    ) : mode === 'join' ? (
                         <div className="max-w-md mx-auto glass-panel p-8 rounded-2xl text-center">
                             <h3 className="text-xl font-bold mb-4">Inserisci Codice</h3>
                             <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} placeholder="XXXXXX" className="w-full bg-slate-800 border-2 border-slate-600 rounded-xl px-4 py-3 text-center text-3xl tracking-[0.5em] font-mono mb-6 focus:border-indigo-500 outline-none uppercase" />
                             <button onClick={() => onJoin(joinCode)} className="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-lg">ENTRA</button>
                         </div>
-                    )}
-
-                    {mode === 'create' && (
+                    ) : (
                         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="space-y-6">
                                 <div className="glass-panel p-6 rounded-2xl">
@@ -309,26 +262,26 @@
                                 </div>
                                 <div className="glass-panel p-6 rounded-2xl">
                                     <h3 className="font-bold text-gray-300 mb-3">Difficoltà</h3>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                         {DIFFICULTIES.map((diff, idx) => (
-                                            <button key={idx} onClick={() => setDifficulty(diff)} className={`py-3 px-4 rounded-xl font-semibold transition text-left flex justify-between items-center ${difficulty.label === diff.label ? 'bg-purple-600 text-white shadow-lg scale-[1.02]' : 'bg-slate-800 text-gray-400 hover:bg-slate-700'}`}>
+                                            <button key={idx} onClick={() => setDifficulty(diff)} className={`py-2 px-3 rounded-xl font-semibold transition text-sm flex flex-col items-center ${difficulty.label === diff.label ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-gray-400 hover:bg-slate-700'}`}>
                                                 <span>{diff.label}</span>
-                                                <span className="text-xs bg-black/20 px-2 py-1 rounded">{diff.pieces} pz</span>
+                                                <span className="text-[10px] opacity-60">{diff.pieces} pz</span>
                                             </button>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="glass-panel p-6 rounded-2xl flex items-center justify-between">
-                                    <span className="font-bold text-gray-300">Aiuto "Occhio" (5s)</span>
+                                    <span className="font-bold text-gray-300">Guida visiva</span>
                                     <button onClick={() => setShowRef(!showRef)} className={`w-14 h-8 rounded-full p-1 transition-colors ${showRef ? 'bg-green-500' : 'bg-slate-700'}`}><div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${showRef ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
                                 </div>
                             </div>
                             <div className="flex flex-col gap-6">
                                 <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col items-center justify-center">
-                                    <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800 group">
-                                        <img src={selectedImage.url} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition" />
-                                        <div className="absolute inset-0 grid border border-white/10" style={{ gridTemplateColumns: `repeat(${difficulty.cols}, 1fr)`, gridTemplateRows: `repeat(${difficulty.rows}, 1fr)` }}>
-                                            {Array.from({ length: difficulty.pieces }).map((_, i) => <div key={i} className="border border-white/10"></div>)}
+                                    <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800">
+                                        <img src={selectedImage.url} className="w-full h-full object-cover opacity-60" />
+                                        <div className="absolute inset-0 grid border border-white/5" style={{ gridTemplateColumns: `repeat(${difficulty.cols}, 1fr)`, gridTemplateRows: `repeat(${difficulty.rows}, 1fr)` }}>
+                                            {Array.from({ length: difficulty.pieces }).map((_, i) => <div key={i} className="border border-white/5"></div>)}
                                         </div>
                                     </div>
                                     <div className="mt-6 text-center">
@@ -336,7 +289,7 @@
                                         <p className="text-gray-400">{difficulty.label} • {difficulty.pieces} Pezzi</p>
                                     </div>
                                 </div>
-                                <button onClick={handleCreate} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition">CREA PARTITA</button>
+                                <button onClick={handleCreate} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition">CREA PARTITA</button>
                             </div>
                         </div>
                     )}
@@ -345,37 +298,32 @@
         }
 
         function WaitingRoom({ room, user, onStart }) {
-            if (!room) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">Attendi...</div>;
+            if (!room) return null;
             const isHost = room.hostId === user.uid;
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-white">
                     <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl text-center">
-                        <div className="mb-10">
-                            <h2 className="text-3xl font-bold mb-4">Sala d'Attesa</h2>
-                            <div onClick={() => { navigator.clipboard.writeText(room.id); alert("Copiato!"); }} className="bg-slate-800 hover:bg-slate-700 p-6 rounded-2xl inline-flex flex-col cursor-pointer transition border border-slate-700 group">
-                                <span className="text-sm text-gray-400 mb-1 group-hover:text-purple-300">Codice Stanza</span>
-                                <span className="text-5xl font-mono tracking-widest text-purple-400 font-bold">{room.id}</span>
-                            </div>
+                        <h2 className="text-3xl font-bold mb-4">Sala d'Attesa</h2>
+                        <div onClick={() => { navigator.clipboard.writeText(room.id); }} className="bg-slate-800 hover:bg-slate-700 p-6 rounded-2xl inline-flex flex-col cursor-pointer transition border border-slate-700 mb-8">
+                            <span className="text-sm text-gray-400 mb-1">Codice Stanza (clicca per copiare)</span>
+                            <span className="text-5xl font-mono tracking-widest text-purple-400 font-bold">{room.id}</span>
                         </div>
                         <div className="bg-slate-800/50 rounded-2xl p-6 mb-8 text-left">
-                            <h3 className="text-gray-400 font-bold mb-4 flex items-center justify-between">
-                                <span>Giocatori</span>
-                                <span className="bg-slate-700 px-3 py-1 rounded-full text-xs text-white">{room.players.length}</span>
-                            </h3>
+                            <h3 className="text-gray-400 font-bold mb-4">Giocatori ({room.players.length})</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {room.players.map(p => (
                                     <div key={p.uid} className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
                                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold">{p.name.substring(0,2).toUpperCase()}</div>
-                                        <span className="font-semibold">{p.name} {p.uid === user.uid && "(Tu)"}</span>
-                                        {p.uid === room.hostId && <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded">HOST</span>}
+                                        <span className="font-semibold">{p.name}</span>
+                                        {p.uid === room.hostId && <span className="ml-auto text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">HOST</span>}
                                     </div>
                                 ))}
                             </div>
                         </div>
                         {isHost ? (
-                            <button onClick={onStart} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg transform hover:scale-[1.02] transition">INIZIA PARTITA</button>
+                            <button onClick={onStart} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg transform hover:scale-[1.02] transition">INIZIA ORA</button>
                         ) : (
-                            <div className="text-purple-300 animate-pulse font-semibold">In attesa che l'host inizi la partita...</div>
+                            <div className="text-purple-300 animate-pulse font-semibold">L'host sta per iniziare...</div>
                         )}
                     </div>
                 </div>
@@ -384,505 +332,235 @@
 
         const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
             if (!shape) return null;
-
-            const unitW = 100;
-            const unitH = 100;
+            const unitW = 100; const unitH = 100;
             const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
-            const totalW = unitW * cols;
-            const totalH = unitH * rows;
-            const imgX = -1 * col * unitW;
-            const imgY = -1 * row * unitH;
-            const id = `p-${row}-${col}-${isPlaced ? 'placed' : 'bank'}`;
-
+            const totalW = unitW * cols; const totalH = unitH * rows;
+            const imgX = -col * unitW; const imgY = -row * unitH;
+            const id = `p-${row}-${col}-${isPlaced ? 'pl' : 'bk'}`;
             return (
-                <svg viewBox={`-35 -35 ${unitW+70} ${unitH+70}`} className="w-full h-full" style={{ overflow: 'visible', pointerEvents: 'none' }}>
+                <svg viewBox={`-35 -35 ${unitW+70} ${unitH+70}`} className="w-full h-full overflow-visible pointer-events-none">
                     <defs><clipPath id={`clip-${id}`}><path d={pathData} /></clipPath></defs>
                     <g clipPath={`url(#clip-${id})`}>
                         <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
-                        <path d={pathData} fill="white" fillOpacity="0.15" transform="translate(-1,-1)" />
-                        <path d={pathData} fill="black" fillOpacity="0.2" transform="translate(1,1)" />
+                        {!isPlaced && <path d={pathData} fill="white" fillOpacity="0.1" />}
                     </g>
-                    <path d={pathData} fill="none" stroke="#222" strokeWidth="1" strokeOpacity="0.8" />
+                    <path d={pathData} fill="none" stroke={isPlaced ? "rgba(0,0,0,0.15)" : "#111"} strokeWidth={isPlaced ? "0.5" : "1"} />
                 </svg>
             );
         };
 
         function GameRoom({ room, user, nickname, roomId, appId }) {
-            if (!room || !room.config) return <div className="text-white text-center mt-20">Caricamento...</div>;
-            
+            if (!room) return null;
             const config = room.config;
             const diff = DIFFICULTIES[config.difficultyIdx];
 
-            if (!diff) return <div className="text-white text-center mt-20">Errore Configurazione</div>;
-            
             const [bankPieces, setBankPieces] = React.useState([]); 
             const [boardState, setBoardState] = React.useState({}); 
-            
             const [timer, setTimer] = React.useState(0);
             const [showHelper, setShowHelper] = React.useState(false);
             const [helperCooldown, setHelperCooldown] = React.useState(0);
             const [magicCooldown, setMagicCooldown] = React.useState(0);
+            const [dragState, setDragState] = React.useState(null);
+            const [hoveredSlot, setHoveredSlot] = React.useState(null);
             
             const allPiecesRef = React.useRef({});
             const myFinishRef = React.useRef(false);
 
             React.useEffect(() => {
-                const initialBank = [];
-                const allP = {};
-                const allShapes = {};
-
+                const initialBank = []; const allP = {}; const allShapes = {};
                 for(let r=0; r<diff.rows; r++) {
                     for(let c=0; c<diff.cols; c++) {
                         let top=0, bottom=0, left=0, right=0;
-                        
-                        if (r!==0) {
-                            const pAbove = allShapes[`${r-1}-${c}`];
-                            top = pAbove ? -1 * pAbove.bottom : 0; 
-                        }
-                        
-                        if (c!==0) {
-                            const pLeft = allShapes[`${r}-${c-1}`];
-                            left = pLeft ? -1 * pLeft.right : 0;
-                        }
-                        
+                        if (r!==0) top = -1 * allShapes[`${r-1}-${c}`].bottom;
+                        if (c!==0) left = -1 * allShapes[`${r}-${c-1}`].right;
                         if (c!==diff.cols-1) right = Math.random() > 0.5 ? 1 : -1;
                         if (r!==diff.rows-1) bottom = Math.random() > 0.5 ? 1 : -1;
-
                         const shape = { top, right, bottom, left };
                         allShapes[`${r}-${c}`] = shape;
-                        
                         const id = r*diff.cols + c;
-                        const pieceObj = { id, correctIndex: id, row: r, col: c, shape };
-                        
-                        allP[id] = pieceObj;
+                        allP[id] = { id, correctIndex: id, row: r, col: c, shape };
                         initialBank.push(id);
                     }
                 }
-                
                 allPiecesRef.current = allP;
                 setBankPieces(initialBank.sort(() => Math.random() - 0.5));
-                
-                const interval = setInterval(() => {
-                    if (!myFinishRef.current) setTimer(t => t + 1);
-                }, 1000);
+                const interval = setInterval(() => { if (!myFinishRef.current) setTimer(t => t + 1); }, 1000);
                 return () => clearInterval(interval);
             }, []);
 
             React.useEffect(() => {
-                if(helperCooldown > 0) {
-                    const i = setInterval(() => setHelperCooldown(c => c - 1), 1000);
-                    return () => clearInterval(i);
-                }
+                if(helperCooldown > 0) { const i = setInterval(() => setHelperCooldown(c => c - 1), 1000); return () => clearInterval(i); }
             }, [helperCooldown]);
             
             React.useEffect(() => {
-                if(magicCooldown > 0) {
-                    const i = setInterval(() => setMagicCooldown(c => c - 1), 1000);
-                    return () => clearInterval(i);
-                }
+                if(magicCooldown > 0) { const i = setInterval(() => setMagicCooldown(c => c - 1), 1000); return () => clearInterval(i); }
             }, [magicCooldown]);
             
             React.useEffect(() => {
                 if (Object.keys(allPiecesRef.current).length === 0) return;
-
-                let correctCount = 0;
-                let isComplete = true;
-                
+                let correctCount = 0; let isComplete = true;
                 for(let i=0; i<diff.pieces; i++) {
-                    const pieceInSlot = boardState[i];
-                    if (pieceInSlot && pieceInSlot.id === i) {
-                        correctCount++;
-                    } else {
-                        isComplete = false;
-                    }
+                    if (boardState[i]?.id === i) correctCount++; else isComplete = false;
                 }
-
                 const updateRemote = async () => {
                     const progress = Math.round((correctCount / diff.pieces) * 100);
                     const myPlayerIndex = room.players.findIndex(p => p.uid === user.uid);
                     if (myPlayerIndex === -1) return;
-
-                    const currentRemote = room.players[myPlayerIndex];
-                    if (currentRemote.progress !== progress) {
+                    if (room.players[myPlayerIndex].progress !== progress) {
                         const updatedPlayers = [...room.players];
                         updatedPlayers[myPlayerIndex] = { ...updatedPlayers[myPlayerIndex], progress };
-
                         let rankingsUpdate = {};
-                        if (isComplete && !currentRemote.finished) {
+                        if (isComplete && !room.players[myPlayerIndex].finished) {
                             myFinishRef.current = true;
                             updatedPlayers[myPlayerIndex].finished = true;
                             updatedPlayers[myPlayerIndex].finishTime = timer;
-                            const newRankEntry = { uid: user.uid, name: nickname, time: timer };
-                            rankingsUpdate = { rankings: arrayUnion(newRankEntry) };
+                            rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: timer }) };
                         }
-
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), {
-                            players: updatedPlayers,
-                            ...rankingsUpdate
-                        });
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers, ...rankingsUpdate });
                     }
                 };
                 updateRemote();
             }, [boardState]);
 
-            const [dragState, setDragState] = React.useState(null);
-
-            const handleDragStart = (e, pieceId, source, slotIndex = null) => {
-                e.dataTransfer.setData("pieceId", pieceId);
-                e.dataTransfer.setData("source", source);
-                if (source === 'board') e.dataTransfer.setData("srcSlot", slotIndex);
-            };
-
-            const handleDropOnSlot = (e, targetSlotIndex) => {
-                e.preventDefault();
-                const pieceId = parseInt(e.dataTransfer.getData("pieceId"));
-                const source = e.dataTransfer.getData("source");
-                
-                if (isNaN(pieceId)) return;
-                
-                const pieceObj = allPiecesRef.current[pieceId];
-                if (!pieceObj) return;
-
-                if (boardState[targetSlotIndex]) return; 
-
-                setBoardState(prev => ({ ...prev, [targetSlotIndex]: pieceObj }));
-                
-                if (source === 'bank') {
-                    setBankPieces(prev => prev.filter(id => id !== pieceId));
-                } else if (source === 'board') {
-                    const srcSlot = parseInt(e.dataTransfer.getData("srcSlot"));
-                    setBoardState(prev => {
-                        const newState = { ...prev, [targetSlotIndex]: pieceObj };
-                        delete newState[srcSlot];
-                        return newState;
-                    });
-                }
-            };
-
-            const handleDropOnBank = (e) => {
-                e.preventDefault();
-                const pieceId = parseInt(e.dataTransfer.getData("pieceId"));
-                const source = e.dataTransfer.getData("source");
-                
-                if (isNaN(pieceId)) return;
-                if (source === 'bank') return; 
-
-                setBankPieces(prev => [...prev, pieceId]);
-                
-                const srcSlot = parseInt(e.dataTransfer.getData("srcSlot"));
-                setBoardState(prev => {
-                    const newState = { ...prev };
-                    delete newState[srcSlot];
-                    return newState;
-                });
-            };
-
-            const handleTouchStart = (e, pieceId, source, slotIndex = null) => {
-                e.stopPropagation(); 
-                const touch = e.touches[0];
-                setDragState({
-                    pieceId,
-                    source,
-                    srcSlot: slotIndex,
-                    x: touch.clientX,
-                    y: touch.clientY
-                });
-            };
-
-            const handleTouchMove = (e) => {
-                if (!dragState) return;
-                e.preventDefault(); 
-                const touch = e.touches[0];
-                setDragState(prev => ({ ...prev, x: touch.clientX, y: touch.clientY }));
-            };
-
-            const handleTouchEnd = (e) => {
-                if (!dragState) return;
-                
-                const touch = e.changedTouches[0];
-                const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-                
-                let current = targetEl;
-                while (current) {
-                    if (current.dataset && current.dataset.slotIndex !== undefined) {
-                        const idx = parseInt(current.dataset.slotIndex);
-                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', idx);
-                        break;
-                    }
-                    if (current.id === 'piece-bank') {
-                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
-                        break;
-                    }
-                    current = current.parentElement;
-                }
-
-                setDragState(null);
-            };
-            
-            const handleTouchCancel = (e) => {
-                 setDragState(null);
-            };
-
             const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
                  const pieceObj = allPiecesRef.current[pieceId];
                  if (!pieceObj) return;
-                 
                  if (targetType === 'slot') {
                      if (boardState[targetIndex]) return; 
-                     
-                     setBoardState(prev => ({ ...prev, [targetIndex]: pieceObj }));
-                     if (source === 'bank') {
-                         setBankPieces(prev => prev.filter(id => id !== pieceId));
-                     } else if (source === 'board') {
-                         setBoardState(prev => {
-                             const newState = { ...prev, [targetIndex]: pieceObj };
-                             delete newState[srcSlot];
-                             return newState;
-                         });
-                     }
-                 } 
-                 else if (targetType === 'bank') {
-                     if (source === 'bank') return; 
-                     setBankPieces(prev => [...prev, pieceId]);
                      setBoardState(prev => {
-                         const newState = { ...prev };
-                         delete newState[srcSlot];
+                         const newState = { ...prev, [targetIndex]: pieceObj };
+                         if (source === 'board') delete newState[srcSlot];
                          return newState;
                      });
+                     if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
+                 } else if (targetType === 'bank') {
+                     if (source === 'bank') return;
+                     setBankPieces(prev => [...prev, pieceId]);
+                     setBoardState(prev => { const newState = { ...prev }; delete newState[srcSlot]; return newState; });
                  }
-            };
-            
-            const useMagic = () => {
-                if (magicCooldown > 0 || bankPieces.length === 0) return;
-                
-                const randomIndex = Math.floor(Math.random() * bankPieces.length);
-                const pieceId = bankPieces[randomIndex];
-                const piece = allPiecesRef.current[pieceId];
-                
-                if (!piece) return;
-
-                setBoardState(prev => {
-                    const existing = prev[piece.correctIndex];
-                    if (existing) {
-                        setBankPieces(b => [...b, existing.id]);
-                    }
-                    return { ...prev, [piece.correctIndex]: piece };
-                });
-                
-                setBankPieces(prev => prev.filter(id => id !== pieceId));
-                setMagicCooldown(120);
+                 setHoveredSlot(null);
             };
 
-            // Sorting logic for leaderboard
             const sortedPlayers = [...room.players].sort((a, b) => {
                 if (a.finished && b.finished) return a.finishTime - b.finishTime;
-                if (a.finished) return -1;
-                if (b.finished) return 1;
+                if (a.finished) return -1; if (b.finished) return 1;
                 return b.progress - a.progress;
             });
 
-            const myPlayer = room.players.find(p => p.uid === user.uid);
-
-            if (myPlayer?.finished) {
-                return (
-                    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-                        <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl z-10 relative">
-                            <h2 className="text-4xl font-extrabold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-500">
-                                {room.rankings[0]?.uid === user.uid ? "VITTORIA!" : "COMPLETATO!"}
-                            </h2>
-                            <p className="text-center text-gray-400 mb-8">Tempo: <span className="text-white font-mono">{formatTime(timer)}</span></p>
-
-                            <div className="bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700">
-                                {room.rankings.sort((a,b) => a.time - b.time).map((r, idx) => (
-                                    <div key={r.uid} className={`p-4 flex justify-between items-center ${r.uid === user.uid ? 'bg-indigo-500/20' : 'border-b border-slate-700/50'}`}>
-                                        <div className="flex items-center gap-4">
-                                            <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${idx===0 ? 'bg-yellow-500 text-black' : 'bg-slate-700'}`}>{idx+1}</span>
-                                            <span className="font-semibold">{r.name}</span>
-                                        </div>
-                                        <span className="font-mono">{formatTime(r.time)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <button onClick={() => window.location.reload()} className="mt-8 w-full py-2 px-6 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-bold transition">Esci</button>
-                        </div>
-                    </div>
-                );
-            }
+            const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
             return (
-                <div 
-                    className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen"
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchCancel={handleTouchCancel}
-                >
-                    {dragState && allPiecesRef.current[dragState.pieceId] && (
-                        <div 
-                            style={{ 
-                                position: 'fixed', 
-                                left: dragState.x, 
-                                top: dragState.y, 
-                                width: '80px', 
-                                height: '80px', 
-                                transform: 'translate(-50%, -50%)', 
-                                pointerEvents: 'none', 
-                                zIndex: 9999 
-                            }}
-                        >
-                            <PuzzlePieceSVG 
-                                shape={allPiecesRef.current[dragState.pieceId].shape} 
-                                imageUrl={config.imageUrl}
-                                row={allPiecesRef.current[dragState.pieceId].row} 
-                                col={allPiecesRef.current[dragState.pieceId].col} 
-                                cols={diff.cols} rows={diff.rows} isPlaced={false}
-                            />
+                <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
+                     onTouchMove={(e) => {
+                        if (!dragState) return; e.preventDefault();
+                        const t = e.touches[0];
+                        setDragState(prev => ({ ...prev, x: t.clientX, y: t.clientY }));
+                        const target = document.elementFromPoint(t.clientX, t.clientY);
+                        if (target?.dataset?.slotIndex) setHoveredSlot(parseInt(target.dataset.slotIndex));
+                        else setHoveredSlot(null);
+                     }}
+                     onTouchEnd={(e) => {
+                        if (!dragState) return;
+                        const t = e.changedTouches[0];
+                        const target = document.elementFromPoint(t.clientX, t.clientY);
+                        let found = false;
+                        let current = target;
+                        while(current) {
+                            if (current.dataset?.slotIndex !== undefined) {
+                                executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', parseInt(current.dataset.slotIndex));
+                                found = true; break;
+                            }
+                            if (current.id === 'piece-bank') {
+                                executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
+                                found = true; break;
+                            }
+                            current = current.parentElement;
+                        }
+                        setDragState(null); setHoveredSlot(null);
+                     }}>
+
+                    {dragState && (
+                        <div style={{ position: 'fixed', left: dragState.x, top: dragState.y, width: '70px', height: '70px', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 9999 }}>
+                            <PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
                         </div>
                     )}
 
                     {showHelper && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-8" onClick={() => setShowHelper(false)}>
-                            <img src={config.imageUrl} className="max-w-full max-h-full rounded shadow-2xl" />
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4" onClick={() => setShowHelper(false)}>
+                            <img src={config.imageUrl} className="max-w-full max-h-full rounded-lg shadow-2xl" />
                         </div>
                     )}
 
                     {/* Sidebar */}
-                    <div className="w-full md:w-80 bg-slate-800 flex flex-col border-b md:border-r border-slate-700 z-20 shadow-2xl relative flex-shrink-0 max-h-[35vh] md:max-h-full md:h-full">
-                        <div className="p-2 md:p-4 border-b border-slate-700 bg-slate-800 flex justify-between items-center md:block">
-                            <div className="md:mb-4">
-                                <h2 className="font-bold text-white text-sm md:text-base">Puzzle Battle</h2>
-                                <div className="font-mono text-yellow-400 font-bold text-sm">{formatTime(timer)}</div>
+                    <div className="w-full md:w-80 bg-slate-800 flex flex-col border-b md:border-r border-slate-700 z-20 shadow-2xl relative flex-shrink-0 max-h-[40vh] md:max-h-full md:h-full">
+                        <div className="p-3 border-b border-slate-700 flex justify-between items-center md:flex-col md:items-stretch gap-2">
+                            <div className="flex flex-col">
+                                <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Tempo</span>
+                                <span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
                             </div>
-                            
                             <div className="flex gap-2">
-                                {config.showReference && (
-                                    <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(20); }, 5000); }}} 
-                                        disabled={helperCooldown > 0} 
-                                        className={`py-1 px-3 md:py-2 md:w-full rounded-lg font-bold text-xs md:text-sm transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
-                                        {helperCooldown > 0 ? `${helperCooldown}s` : "👁 Img"}
-                                    </button>
-                                )}
-                                <button onClick={useMagic}
-                                    disabled={magicCooldown > 0 || bankPieces.length === 0} 
-                                    className={`py-1 px-3 md:py-2 md:w-full rounded-lg font-bold text-xs md:text-sm transition md:mt-2 ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 hover:bg-purple-500 text-white'}`}>
-                                    {magicCooldown > 0 ? `${magicCooldown}s` : "🪄 Magic"}
-                                </button>
+                                <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(15); }, 5000); }}} disabled={helperCooldown > 0} className={`p-2 flex-1 rounded-lg font-bold text-xs transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 text-white'}`}>👁 {helperCooldown > 0 ? helperCooldown : 'Img'}</button>
+                                <button onClick={() => { if(magicCooldown<=0 && bankPieces.length>0){ 
+                                    const id = bankPieces[Math.floor(Math.random()*bankPieces.length)];
+                                    executeDrop(id, 'bank', null, 'slot', id);
+                                    setMagicCooldown(120);
+                                }}} disabled={magicCooldown > 0 || bankPieces.length===0} className={`p-2 flex-1 rounded-lg font-bold text-xs transition ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
                             </div>
                         </div>
 
-                        {/* Leaderboard Section */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 max-h-24 md:max-h-48 border-b border-slate-700 bg-slate-900/30">
+                        {/* Leaderboard */}
+                        <div className="p-2 space-y-1 overflow-y-auto max-h-20 md:max-h-40 border-b border-slate-700 bg-slate-900/40">
                              {sortedPlayers.map((p, idx) => (
-                                <div key={p.uid} className={`flex justify-between items-center text-xs md:text-sm p-2 rounded-lg ${p.uid === user.uid ? 'bg-indigo-600/20 border border-indigo-500/30' : 'bg-slate-800/50'}`}>
-                                    <div className="flex items-center gap-2 overflow-hidden">
-                                        <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${p.finished ? 'bg-yellow-500 text-black' : 'bg-slate-700 text-gray-300'}`}>
-                                            {p.finished ? (idx + 1) : (p.name.charAt(0).toUpperCase())}
-                                        </div>
-                                        <div className="flex flex-col truncate">
-                                            <span className={`truncate w-20 md:w-28 font-semibold ${p.uid === user.uid ? 'text-white' : 'text-gray-400'}`}>{p.name}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2 ml-2">
-                                        {p.finished ? (
-                                            <span className="font-mono text-yellow-400 font-bold">{formatTime(p.finishTime)}</span>
-                                        ) : (
-                                            <div className="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                                <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div key={p.uid} className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 rounded ${p.uid === user.uid ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30' : 'bg-slate-800/40'}`}>
+                                    <span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
+                                    {p.finished ? <span className="text-yellow-400 font-mono">🏆 {formatTime(p.finishTime)}</span> : <span className="text-green-400">{p.progress}%</span>}
                                 </div>
                             ))}
                         </div>
                         
-                        {/* Piece Bank (Droppable & Touch Aware) */}
-                        <div 
-                            id="piece-bank"
-                            className="flex-1 overflow-y-auto bg-slate-900/80 p-2 custom-scrollbar transition-colors"
-                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = '#1e293b'; }}
-                            onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
-                            onDrop={(e) => { e.currentTarget.style.backgroundColor = ''; handleDropOnBank(e); }}
-                        >
-                             <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-20">
-                                {bankPieces.map((id) => {
-                                    const p = allPiecesRef.current[id];
-                                    if(!p) return null;
-                                    return (
-                                        <div 
-                                            key={id}
-                                            draggable
-                                            onDragStart={(e) => handleDragStart(e, id, 'bank')}
-                                            onTouchStart={(e) => handleTouchStart(e, id, 'bank')}
-                                            className="aspect-square puzzle-piece-container relative p-0.5"
-                                        >
-                                            <PuzzlePieceSVG 
-                                                shape={p.shape} imageUrl={config.imageUrl}
-                                                row={p.row} col={p.col} cols={diff.cols} rows={diff.rows} isPlaced={false}
-                                            />
-                                        </div>
-                                    )
-                                })}
+                        {/* Piece Bank */}
+                        <div id="piece-bank" className="flex-1 overflow-y-auto bg-slate-900/60 p-2 custom-scrollbar"
+                             onDragOver={(e) => e.preventDefault()}
+                             onDrop={(e) => {
+                                const id = parseInt(e.dataTransfer.getData("pieceId"));
+                                const src = e.dataTransfer.getData("source");
+                                if (src === 'board') executeDrop(id, 'board', parseInt(e.dataTransfer.getData("srcSlot")), 'bank');
+                             }}>
+                             <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
+                                {bankPieces.map((id) => (
+                                    <div key={id} draggable onDragStart={(e) => { e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
+                                         onTouchStart={(e) => handleTouchStart(e, id, 'bank')} className="aspect-square puzzle-piece-container relative">
+                                        <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
 
-                    {/* Main Board Area */}
-                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-2 md:p-4 overflow-hidden relative select-none">
-                        
-                        <div 
-                            className="relative shadow-2xl rounded bg-slate-900/50"
-                            style={{ 
-                                width: '100%', 
-                                maxWidth: '95vh',
-                                aspectRatio: `${diff.cols}/${diff.rows}`,
-                                maxHeight: '90%',
-                                objectFit: 'contain'
-                            }}
-                        >
-                            {/* The Grid Slots */}
-                            <div className="w-full h-full relative">
+                    {/* Main Board */}
+                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-1 md:p-6 overflow-hidden relative">
+                        <div className="relative shadow-2xl bg-slate-900/30 border border-white/5" 
+                             style={{ width: '100%', maxWidth: '95vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '92%' }}>
+                            <div className="w-full h-full relative grid" style={{ gridTemplateColumns: `repeat(${diff.cols}, 1fr)`, gridTemplateRows: `repeat(${diff.rows}, 1fr)` }}>
                                 {Array.from({ length: diff.pieces }).map((_, index) => {
-                                    const r = Math.floor(index / diff.cols);
-                                    const c = index % diff.cols;
-                                    const placedPiece = boardState[index];
-                                    
+                                    const piece = boardState[index];
+                                    const isHovered = hoveredSlot === index;
                                     return (
-                                        <div 
-                                            key={index}
-                                            data-slot-index={index} // Helper for Touch Logic
-                                            onDragOver={(e) => { if(!placedPiece) e.preventDefault(); }}
-                                            onDrop={(e) => handleDropOnSlot(e, index)}
-                                            className="absolute box-border flex items-center justify-center"
-                                            style={{
-                                                top: `${(r/diff.rows)*100}%`, left: `${(c/diff.cols)*100}%`,
-                                                width: `${100/diff.cols}%`, height: `${100/diff.rows}%`,
-                                                zIndex: placedPiece ? 10 : 1
-                                            }}
-                                        >
-                                            {/* Minimalist guide dot */}
-                                            {!placedPiece && (
-                                                <div className="w-1 h-1 bg-white/10 rounded-full"></div>
-                                            )}
-                                            
-                                            {placedPiece && (
-                                                <div 
-                                                    className="absolute animate-pop" 
-                                                    draggable
-                                                    onDragStart={(e) => handleDragStart(e, placedPiece.id, 'board', index)}
-                                                    onTouchStart={(e) => handleTouchStart(e, placedPiece.id, 'board', index)}
-                                                    style={{
-                                                        top: '-25%', left: '-25%', width: '150%', height: '150%', 
-                                                        filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.5))',
-                                                        cursor: 'grab'
-                                                    }}
-                                                >
-                                                     <PuzzlePieceSVG 
-                                                        shape={placedPiece.shape}
-                                                        imageUrl={config.imageUrl}
-                                                        row={placedPiece.row} col={placedPiece.col} 
-                                                        cols={diff.cols} rows={diff.rows}
-                                                        isPlaced={true}
-                                                    />
+                                        <div key={index} data-slot-index={index} 
+                                             className={`relative w-full h-full transition-colors duration-150 ${isHovered ? 'slot-highlight' : ''}`}
+                                             onDragOver={(e) => { if(!piece) { e.preventDefault(); setHoveredSlot(index); } }}
+                                             onDragLeave={() => setHoveredSlot(null)}
+                                             onDrop={(e) => {
+                                                 const id = parseInt(e.dataTransfer.getData("pieceId"));
+                                                 const src = e.dataTransfer.getData("source");
+                                                 executeDrop(id, src, src === 'board' ? parseInt(e.dataTransfer.getData("srcSlot")) : null, 'slot', index);
+                                             }}>
+                                            {!piece && <div className="absolute inset-0 flex items-center justify-center"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
+                                            {piece && (
+                                                <div className="absolute inset-[-28%] w-[156%] h-[156%] animate-pop z-10" draggable 
+                                                     onDragStart={(e) => { e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
+                                                     onTouchStart={(e) => handleTouchStart(e, piece.id, 'board', index)}>
+                                                     <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
                                                 </div>
                                             )}
                                         </div>
@@ -894,8 +572,6 @@
                 </div>
             );
         }
-
-        const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
