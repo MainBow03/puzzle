@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Puzzle Battle Online</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase -->
+    <!-- Nota: Usiamo le versioni CDN per il file HTML singolo -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .puzzle-piece-container {
+            transition: transform 0.1s;
+            filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
+            cursor: grab;
+        }
+        .puzzle-piece-container:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            z-index: 100 !important;
+            filter: drop-shadow(0 8px 6px rgb(0 0 0 / 0.6));
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .animate-pop { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, arrayUnion, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+
+        // --- Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6soOuVKv26G5gW1VicGAqsCknHA27kiU",
+            authDomain: "puzzle-multiplayer-89920.firebaseapp.com",
+            projectId: "puzzle-multiplayer-89920",
+            storageBucket: "puzzle-multiplayer-89920.firebasestorage.app",
+            messagingSenderId: "74756968916",
+            appId: "1:74756968916:web:2500a2e5d365a4af7ec641",
+            measurementId: "G-G8F8QCPFPH"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const analytics = getAnalytics(app);
+        
+        // Uso il Project ID come identificativo dell'app nel DB per coerenza
+        const appId = "puzzle-multiplayer-89920"; 
+
+        // --- Data ---
+        const IMAGES = [
+            { id: 1, name: "Ariana Grande", url: "https://i.pinimg.com/736x/81/6e/fd/816efd9a00896efe89fd950f75b3f8d3.jpg" },
+            { id: 2, name: "Famiglia Watterson", url: "https://i.pinimg.com/736x/02/be/93/02be937944bca9b29d421287bcf7797a.jpg" },
+            { id: 3, name: "Crystal Gems", url: "https://i.pinimg.com/1200x/40/c4/3c/40c43c1bb7bdb12740d129a36ceaa1d2.jpg" },
+            { id: 4, name: "TomJake", url: "https://i.pinimg.com/736x/e5/d3/7a/e5d37a71cc1d60a88584825ab0309ed8.jpg" },
+            { id: 5, name: "Zatch Bell", url: "https://i.pinimg.com/1200x/6c/88/20/6c8820d0e1f2a40f354c17ec1d0cbb8c.jpg" },
+            { id: 6, name: "Peter Griffin", url: "https://i.pinimg.com/736x/eb/42/ad/eb42ad94041c9f07a1edce34b70950c7.jpg" },
+            { id: 7, name: "Carlos Oliveira", url: "https://i.pinimg.com/736x/45/a7/73/45a7735ae9d38f96795c928a004b5618.jpg" },
+            { id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" }
+        ];
+
+        const DIFFICULTIES = [
+            { label: "Facile", pieces: 15, cols: 3, rows: 5 },
+            { label: "Normale", pieces: 20, cols: 4, rows: 5 },
+            { label: "Avanzato", pieces: 30, cols: 5, rows: 6 },
+            { label: "Difficile", pieces: 50, cols: 5, rows: 10 }
+        ];
+
+        // --- Jigsaw Logic ---
+        const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
+            const tabSize = Math.min(width, height) * 0.22; 
+            const w = width;
+            const h = height;
+            let path = `M 0 0`;
+            
+            // Top
+            if (topTab === 0) path += ` L ${w} 0`;
+            else {
+                path += ` L ${w * 0.4} 0`;
+                path += ` C ${w * 0.4} ${topTab * tabSize * -1}, ${w * 0.6} ${topTab * tabSize * -1}, ${w * 0.6} 0`;
+                path += ` L ${w} 0`;
+            }
+            // Right
+            if (rightTab === 0) path += ` L ${w} ${h}`;
+            else {
+                path += ` L ${w} ${h * 0.4}`;
+                path += ` C ${w + rightTab * tabSize} ${h * 0.4}, ${w + rightTab * tabSize} ${h * 0.6}, ${w} ${h * 0.6}`;
+                path += ` L ${w} ${h}`;
+            }
+            // Bottom
+            if (bottomTab === 0) path += ` L 0 ${h}`;
+            else {
+                path += ` L ${w * 0.6} ${h}`;
+                path += ` C ${w * 0.6} ${h + bottomTab * tabSize}, ${w * 0.4} ${h + bottomTab * tabSize}, ${w * 0.4} ${h}`;
+                path += ` L 0 ${h}`;
+            }
+            // Left
+            if (leftTab === 0) path += ` L 0 0`;
+            else {
+                path += ` L 0 ${h * 0.6}`;
+                path += ` C ${leftTab * tabSize * -1} ${h * 0.6}, ${leftTab * tabSize * -1} ${h * 0.4}, 0 ${h * 0.4}`;
+                path += ` L 0 0`;
+            }
+            return path;
+        };
+
+        // --- Components ---
+
+        function App() {
+            const [user, setUser] = React.useState(null);
+            const [view, setView] = React.useState("loading"); 
+            const [nickname, setNickname] = React.useState("");
+            const [roomId, setRoomId] = React.useState(null);
+            const [roomData, setRoomData] = React.useState(null);
+            const [error, setError] = React.useState("");
+
+            React.useEffect(() => {
+                const initAuth = async () => {
+                    // Controlla se c'è un token personalizzato (usato negli ambienti di test AI)
+                    // Altrimenti usa signInAnonymously standard di Firebase
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                         try {
+                             await signInWithCustomToken(auth, __initial_auth_token);
+                         } catch(e) {
+                             console.log("Fallback to anonymous due to token error", e);
+                             await signInAnonymously(auth);
+                         }
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
+                return onAuthStateChanged(auth, (u) => { if (u) { setUser(u); setView("login"); } });
+            }, []);
+
+            React.useEffect(() => {
+                if (!roomId || !user) return;
+                const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setRoomData(data);
+                        if (data.status === 'playing' && view === 'room') setView('game');
+                    } else {
+                        setError("Stanza chiusa."); setView("lobby"); setRoomId(null);
+                    }
+                }, (err) => {
+                    console.error("Firestore error:", err);
+                    setError("Errore di connessione o permessi.");
+                });
+                return () => unsub();
+            }, [roomId, user, view]);
+
+            const handleLogin = () => { if (nickname.trim()) setView("lobby"); };
+
+            const createRoom = async (config) => {
+                const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const initialData = {
+                    id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
+                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null }],
+                    rankings: [],
+                    createdAt: new Date().toISOString()
+                };
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
+                setRoomId(newRoomId); setRoomData(initialData); setView("room");
+            };
+
+            const joinRoom = async (code) => {
+                const rId = code.trim().toUpperCase();
+                try {
+                    const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId));
+                    if (!snap.exists()) { setError("Stanza non trovata!"); return; }
+                    const data = snap.data();
+                    if (data.status !== 'waiting') { setError("Partita già iniziata!"); return; }
+                    
+                    if (!data.players.find(p => p.uid === user.uid)) {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
+                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null })
+                        });
+                    }
+                    setRoomId(rId); setView("room");
+                } catch(e) {
+                    console.error("Join error:", e);
+                    setError("Errore durante l'accesso.");
+                }
+            };
+
+            const startGame = async () => {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { status: 'playing', startTime: new Date().toISOString() });
+                setView("game");
+            };
+
+            if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white">Caricamento...</div>;
+            if (view === "login") return <LoginScreen nickname={nickname} setNickname={setNickname} onEnter={handleLogin} />;
+            if (view === "lobby") return <LobbyScreen onCreate={createRoom} onJoin={joinRoom} error={error} />;
+            if (view === "room") return <WaitingRoom room={roomData} user={user} onStart={startGame} />;
+            if (view === "game") return <GameRoom room={roomData} user={user} nickname={nickname} roomId={roomId} appId={appId} />;
+            return <div>Error</div>;
+        }
+
+        function LoginScreen({ nickname, setNickname, onEnter }) {
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 opacity-80"></div>
+                    <div className="glass-panel p-8 rounded-2xl shadow-2xl z-10 w-full max-w-md text-center">
+                        <h1 className="text-4xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">PUZZLE BATTLE</h1>
+                        <p className="text-gray-400 mb-8">Competizione di intelletto e velocità</p>
+                        <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Nickname" className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white mb-4 focus:ring-2 focus:ring-purple-500 outline-none" maxLength={12} />
+                        <button onClick={onEnter} disabled={!nickname.trim()} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition shadow-lg">Entra</button>
+                    </div>
+                </div>
+            );
+        }
+
+        function LobbyScreen({ onCreate, onJoin, error }) {
+            const [mode, setMode] = React.useState('menu');
+            const [selectedImage, setSelectedImage] = React.useState(IMAGES[0]);
+            const [difficulty, setDifficulty] = React.useState(DIFFICULTIES[1]);
+            const [showRef, setShowRef] = React.useState(true);
+            const [joinCode, setJoinCode] = React.useState("");
+
+            const handleCreate = () => onCreate({ imageId: selectedImage.id, imageUrl: selectedImage.url, difficultyIdx: DIFFICULTIES.indexOf(difficulty), showReference: showRef });
+
+            return (
+                <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 overflow-y-auto">
+                    <div className="flex justify-between items-center mb-8 max-w-4xl mx-auto w-full">
+                        <h2 className="text-2xl font-bold">Lobby</h2>
+                        {mode !== 'menu' && <button onClick={() => setMode('menu')} className="text-gray-400 hover:text-white">Indietro</button>}
+                    </div>
+                    {error && <div className="max-w-md mx-auto bg-red-500/20 border border-red-500 text-red-100 p-4 rounded-xl mb-6 text-center">{error}</div>}
+                    
+                    {mode === 'menu' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mt-10">
+                            <button onClick={() => setMode('create')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
+                                <div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">🧩</div>
+                                <h3 className="text-2xl font-bold">Crea Stanza</h3>
+                            </button>
+                            <button onClick={() => setMode('join')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
+                                <div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">⚔️</div>
+                                <h3 className="text-2xl font-bold">Unisciti</h3>
+                            </button>
+                        </div>
+                    )}
+
+                    {mode === 'join' && (
+                        <div className="max-w-md mx-auto glass-panel p-8 rounded-2xl text-center">
+                            <h3 className="text-xl font-bold mb-4">Inserisci Codice</h3>
+                            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} placeholder="XXXXXX" className="w-full bg-slate-800 border-2 border-slate-600 rounded-xl px-4 py-3 text-center text-3xl tracking-[0.5em] font-mono mb-6 focus:border-indigo-500 outline-none uppercase" />
+                            <button onClick={() => onJoin(joinCode)} className="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-lg">ENTRA</button>
+                        </div>
+                    )}
+
+                    {mode === 'create' && (
+                        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <div className="glass-panel p-6 rounded-2xl">
+                                    <h3 className="font-bold text-gray-300 mb-3">Immagine</h3>
+                                    <div className="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                                        {IMAGES.map(img => (
+                                            <div key={img.id} onClick={() => setSelectedImage(img)} className={`cursor-pointer rounded-lg overflow-hidden border-2 transition h-20 relative ${selectedImage.id === img.id ? 'border-purple-500 ring-2 ring-purple-500/50' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                                                <img src={img.url} className="w-full h-full object-cover" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="glass-panel p-6 rounded-2xl">
+                                    <h3 className="font-bold text-gray-300 mb-3">Difficoltà</h3>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {DIFFICULTIES.map((diff, idx) => (
+                                            <button key={idx} onClick={() => setDifficulty(diff)} className={`py-3 px-4 rounded-xl font-semibold transition text-left flex justify-between items-center ${difficulty.label === diff.label ? 'bg-purple-600 text-white shadow-lg scale-[1.02]' : 'bg-slate-800 text-gray-400 hover:bg-slate-700'}`}>
+                                                <span>{diff.label}</span>
+                                                <span className="text-xs bg-black/20 px-2 py-1 rounded">{diff.pieces} pz</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="glass-panel p-6 rounded-2xl flex items-center justify-between">
+                                    <span className="font-bold text-gray-300">Aiuto "Occhio" (5s)</span>
+                                    <button onClick={() => setShowRef(!showRef)} className={`w-14 h-8 rounded-full p-1 transition-colors ${showRef ? 'bg-green-500' : 'bg-slate-700'}`}><div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${showRef ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-6">
+                                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col items-center justify-center">
+                                    <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800 group">
+                                        <img src={selectedImage.url} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition" />
+                                        <div className="absolute inset-0 grid border border-white/10" style={{ gridTemplateColumns: `repeat(${difficulty.cols}, 1fr)`, gridTemplateRows: `repeat(${difficulty.rows}, 1fr)` }}>
+                                            {Array.from({ length: difficulty.pieces }).map((_, i) => <div key={i} className="border border-white/10"></div>)}
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 text-center">
+                                        <p className="text-purple-400 font-bold text-xl">{selectedImage.name}</p>
+                                        <p className="text-gray-400">{difficulty.label} • {difficulty.pieces} Pezzi</p>
+                                    </div>
+                                </div>
+                                <button onClick={handleCreate} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition">CREA PARTITA</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function WaitingRoom({ room, user, onStart }) {
+            if (!room) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">Attendi...</div>;
+            const isHost = room.hostId === user.uid;
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-white">
+                    <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl text-center">
+                        <div className="mb-10">
+                            <h2 className="text-3xl font-bold mb-4">Sala d'Attesa</h2>
+                            <div onClick={() => { navigator.clipboard.writeText(room.id); alert("Copiato!"); }} className="bg-slate-800 hover:bg-slate-700 p-6 rounded-2xl inline-flex flex-col cursor-pointer transition border border-slate-700 group">
+                                <span className="text-sm text-gray-400 mb-1 group-hover:text-purple-300">Codice Stanza</span>
+                                <span className="text-5xl font-mono tracking-widest text-purple-400 font-bold">{room.id}</span>
+                            </div>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-2xl p-6 mb-8 text-left">
+                            <h3 className="text-gray-400 font-bold mb-4 flex items-center justify-between">
+                                <span>Giocatori</span>
+                                <span className="bg-slate-700 px-3 py-1 rounded-full text-xs text-white">{room.players.length}</span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {room.players.map(p => (
+                                    <div key={p.uid} className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold">{p.name.substring(0,2).toUpperCase()}</div>
+                                        <span className="font-semibold">{p.name} {p.uid === user.uid && "(Tu)"}</span>
+                                        {p.uid === room.hostId && <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded">HOST</span>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        {isHost ? (
+                            <button onClick={onStart} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg transform hover:scale-[1.02] transition">INIZIA PARTITA</button>
+                        ) : (
+                            <div className="text-purple-300 animate-pulse font-semibold">In attesa che l'host inizi la partita...</div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
+            const unitW = 100;
+            const unitH = 100;
+            const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
+            const totalW = unitW * cols;
+            const totalH = unitH * rows;
+            const imgX = -1 * col * unitW;
+            const imgY = -1 * row * unitH;
+            const id = `p-${row}-${col}-${isPlaced ? 'placed' : 'bank'}`;
+
+            return (
+                <svg viewBox={`-25 -25 ${unitW+50} ${unitH+50}`} className="w-full h-full" style={{ overflow: 'visible' }}>
+                    <defs><clipPath id={`clip-${id}`}><path d={pathData} /></clipPath></defs>
+                    <g clipPath={`url(#clip-${id})`}>
+                        <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
+                        {/* 3D Bevel/Highlight effect */}
+                        <path d={pathData} fill="white" fillOpacity="0.15" transform="translate(-1,-1)" />
+                        <path d={pathData} fill="black" fillOpacity="0.2" transform="translate(1,1)" />
+                    </g>
+                    {/* Clearer Border for "Piece" look */}
+                    <path d={pathData} fill="none" stroke="#222" strokeWidth="1" strokeOpacity="0.8" />
+                </svg>
+            );
+        };
+
+        function GameRoom({ room, user, nickname, roomId, appId }) {
+            if (!room) return <div className="text-white text-center mt-20">Caricamento...</div>;
+            const config = room.config;
+            const diff = DIFFICULTIES[config.difficultyIdx];
+            
+            // --- State Refactoring for Free Movement ---
+            // bankPieces: IDs of pieces currently in the bank
+            // boardState: Map { slotIndex: pieceObject }
+            const [bankPieces, setBankPieces] = React.useState([]); 
+            const [boardState, setBoardState] = React.useState({}); 
+            
+            const [timer, setTimer] = React.useState(0);
+            const [showHelper, setShowHelper] = React.useState(false);
+            const [helperCooldown, setHelperCooldown] = React.useState(0);
+            
+            // Reference to all generated pieces to retrieve shape info
+            const allPiecesRef = React.useRef({});
+            const myFinishRef = React.useRef(false);
+
+            // 1. Initialization
+            React.useEffect(() => {
+                const initialBank = [];
+                const allP = {};
+                const allShapes = {};
+
+                // Generate Shapes Grid
+                for(let r=0; r<diff.rows; r++) {
+                    for(let c=0; c<diff.cols; c++) {
+                        let top=0, bottom=0, left=0, right=0;
+                        if (r!==0) top = -1 * allShapes[`${r-1}-${c}`].bottom;
+                        if (c!==0) left = -1 * allShapes[`${r}-${c-1}`].right;
+                        if (c!==diff.cols-1) right = Math.random() > 0.5 ? 1 : -1;
+                        if (r!==diff.rows-1) bottom = Math.random() > 0.5 ? 1 : -1;
+
+                        const shape = { top, right, bottom, left };
+                        allShapes[`${r}-${c}`] = shape;
+                        
+                        const id = r*diff.cols + c;
+                        const pieceObj = { id, correctIndex: id, row: r, col: c, shape };
+                        
+                        allP[id] = pieceObj;
+                        initialBank.push(id);
+                    }
+                }
+                
+                allPiecesRef.current = allP;
+                setBankPieces(initialBank.sort(() => Math.random() - 0.5));
+                
+                const interval = setInterval(() => {
+                    if (!myFinishRef.current) setTimer(t => t + 1);
+                }, 1000);
+                return () => clearInterval(interval);
+            }, []);
+
+            // 2. Cooldown loops
+            React.useEffect(() => {
+                if(helperCooldown > 0) {
+                    const i = setInterval(() => setHelperCooldown(c => c - 1), 1000);
+                    return () => clearInterval(i);
+                }
+            }, [helperCooldown]);
+            
+            // 3. Victory Check & Progress Sync
+            React.useEffect(() => {
+                if (Object.keys(allPiecesRef.current).length === 0) return;
+
+                // Calculate progress based on FILLED slots (to avoid spoiling correctness via progress bar)
+                // OR calculate CORRECT pieces for internal logic but only sync occasionally?
+                // Let's stick to "Correctness" but maybe the user won't notice the 1-2% jumps.
+                // Actually, to make it hardcore, let's sync correct pieces.
+                
+                let correctCount = 0;
+                let isComplete = true;
+                
+                // Check if every slot has the CORRECT piece
+                for(let i=0; i<diff.pieces; i++) {
+                    const pieceInSlot = boardState[i];
+                    if (pieceInSlot && pieceInSlot.id === i) {
+                        correctCount++;
+                    } else {
+                        isComplete = false;
+                    }
+                }
+
+                const updateRemote = async () => {
+                    const progress = Math.round((correctCount / diff.pieces) * 100);
+                    const myPlayerIndex = room.players.findIndex(p => p.uid === user.uid);
+                    if (myPlayerIndex === -1) return;
+
+                    const currentRemote = room.players[myPlayerIndex];
+                    if (currentRemote.progress !== progress) {
+                        const updatedPlayers = [...room.players];
+                        updatedPlayers[myPlayerIndex] = { ...updatedPlayers[myPlayerIndex], progress };
+
+                        let rankingsUpdate = {};
+                        if (isComplete && !currentRemote.finished) {
+                            myFinishRef.current = true;
+                            updatedPlayers[myPlayerIndex].finished = true;
+                            updatedPlayers[myPlayerIndex].finishTime = timer;
+                            const newRankEntry = { uid: user.uid, name: nickname, time: timer };
+                            rankingsUpdate = { rankings: arrayUnion(newRankEntry) };
+                        }
+
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), {
+                            players: updatedPlayers,
+                            ...rankingsUpdate
+                        });
+                    }
+                };
+                updateRemote();
+            }, [boardState]);
+
+            // --- Mechanics ---
+
+            const handleDragStart = (e, pieceId, source, slotIndex = null) => {
+                // Source: 'bank' or 'board'
+                e.dataTransfer.setData("pieceId", pieceId);
+                e.dataTransfer.setData("source", source);
+                if (source === 'board') e.dataTransfer.setData("srcSlot", slotIndex);
+            };
+
+            const handleDropOnSlot = (e, targetSlotIndex) => {
+                e.preventDefault();
+                const pieceId = parseInt(e.dataTransfer.getData("pieceId"));
+                const source = e.dataTransfer.getData("source");
+                
+                if (isNaN(pieceId)) return;
+                
+                const pieceObj = allPiecesRef.current[pieceId];
+
+                // If dropping on a slot that already has a piece?
+                if (boardState[targetSlotIndex]) return; // Occupied!
+
+                // Update State
+                setBoardState(prev => ({ ...prev, [targetSlotIndex]: pieceObj }));
+                
+                // Remove from source
+                if (source === 'bank') {
+                    setBankPieces(prev => prev.filter(id => id !== pieceId));
+                } else if (source === 'board') {
+                    const srcSlot = parseInt(e.dataTransfer.getData("srcSlot"));
+                    setBoardState(prev => {
+                        const newState = { ...prev, [targetSlotIndex]: pieceObj };
+                        delete newState[srcSlot];
+                        return newState;
+                    });
+                }
+            };
+
+            const handleDropOnBank = (e) => {
+                e.preventDefault();
+                const pieceId = parseInt(e.dataTransfer.getData("pieceId"));
+                const source = e.dataTransfer.getData("source");
+                
+                if (source === 'bank') return; // Already there
+
+                // Add to bank
+                setBankPieces(prev => [...prev, pieceId]);
+                
+                // Remove from board
+                const srcSlot = parseInt(e.dataTransfer.getData("srcSlot"));
+                setBoardState(prev => {
+                    const newState = { ...prev };
+                    delete newState[srcSlot];
+                    return newState;
+                });
+            };
+
+            const myPlayer = room.players.find(p => p.uid === user.uid);
+            const isFinished = myPlayer?.finished;
+
+            if (isFinished) {
+                return (
+                    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                        <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl z-10 relative">
+                            <h2 className="text-4xl font-extrabold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-500">
+                                {room.rankings[0]?.uid === user.uid ? "VITTORIA!" : "COMPLETATO!"}
+                            </h2>
+                            <p className="text-center text-gray-400 mb-8">Tempo: <span className="text-white font-mono">{formatTime(timer)}</span></p>
+
+                            <div className="bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700">
+                                <div className="p-4 bg-slate-800 border-b border-slate-700 font-bold text-gray-400 flex justify-between">
+                                    <span>Classifica</span>
+                                    <span>Tempo</span>
+                                </div>
+                                {room.rankings.sort((a,b) => a.time - b.time).map((r, idx) => (
+                                    <div key={r.uid} className={`p-4 flex justify-between items-center ${r.uid === user.uid ? 'bg-indigo-500/20' : 'border-b border-slate-700/50'}`}>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${idx===0 ? 'bg-yellow-500 text-black' : 'bg-slate-700'}`}>{idx+1}</span>
+                                            <span className="font-semibold">{r.name}</span>
+                                        </div>
+                                        <span className="font-mono">{formatTime(r.time)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="mt-8 text-center">
+                                <p className="text-sm text-gray-500 mb-4">In attesa degli altri giocatori...</p>
+                                <button onClick={() => window.location.reload()} className="py-2 px-6 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-bold transition">Esci</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen">
+                    {showHelper && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-8" onClick={() => setShowHelper(false)}>
+                            <img src={config.imageUrl} className="max-w-full max-h-full rounded shadow-2xl" />
+                        </div>
+                    )}
+
+                    {/* Sidebar */}
+                    <div className="w-full md:w-80 bg-slate-800 flex flex-col border-r border-slate-700 z-20 shadow-2xl relative">
+                        <div className="p-4 border-b border-slate-700 bg-slate-800">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="font-bold text-white">Puzzle Battle</h2>
+                                <div className="font-mono text-yellow-400 text-xl font-bold bg-black/30 px-3 py-1 rounded">{formatTime(timer)}</div>
+                            </div>
+                            
+                            <div className="space-y-2 mb-4 bg-slate-900/50 p-3 rounded-xl">
+                                {room.players.sort((a,b) => b.progress - a.progress).map(p => (
+                                    <div key={p.uid} className={`flex justify-between items-center text-sm ${p.uid === user.uid ? 'text-white font-bold' : 'text-gray-400'}`}>
+                                        <div className="flex items-center gap-2">
+                                            {p.finished && <span className="text-yellow-500">👑</span>}
+                                            <span className="truncate w-24">{p.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                                <div className={`h-full ${p.finished ? 'bg-yellow-500' : 'bg-green-500'}`} style={{width: `${p.progress}%`}}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {config.showReference && (
+                                <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(20); }, 5000); }}} 
+                                    disabled={helperCooldown > 0} 
+                                    className={`w-full py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2 ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+                                    {helperCooldown > 0 ? `Attendi ${helperCooldown}s` : <><span>👁</span> Vedi Immagine</>}
+                                </button>
+                            )}
+                        </div>
+                        
+                        {/* Piece Bank (Droppable) */}
+                        <div 
+                            className="flex-1 overflow-y-auto bg-slate-900/80 p-2 custom-scrollbar transition-colors"
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = '#1e293b'; }}
+                            onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
+                            onDrop={(e) => { e.currentTarget.style.backgroundColor = ''; handleDropOnBank(e); }}
+                        >
+                             <p className="text-center text-xs text-gray-600 mb-2 uppercase tracking-widest">Banca Pezzi</p>
+                             <div className="grid grid-cols-2 gap-2 pb-20">
+                                {bankPieces.map((id) => {
+                                    const p = allPiecesRef.current[id];
+                                    if(!p) return null;
+                                    return (
+                                        <div 
+                                            key={id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, id, 'bank')}
+                                            className="aspect-square puzzle-piece-container relative p-2"
+                                        >
+                                            <PuzzlePieceSVG 
+                                                shape={p.shape} imageUrl={config.imageUrl}
+                                                row={p.row} col={p.col} cols={diff.cols} rows={diff.rows} isPlaced={false}
+                                            />
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Board Area */}
+                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-4 overflow-hidden relative select-none">
+                        
+                        <div className="relative shadow-2xl ring-1 ring-slate-800 rounded bg-black"
+                            style={{ width: 'min(90vw, 90vh)', aspectRatio: `${diff.cols}/${diff.rows}` }}>
+                            
+                            {/* The Grid Slots */}
+                            <div className="w-full h-full relative">
+                                {Array.from({ length: diff.pieces }).map((_, index) => {
+                                    const r = Math.floor(index / diff.cols);
+                                    const c = index % diff.cols;
+                                    const placedPiece = boardState[index];
+                                    
+                                    return (
+                                        <div 
+                                            key={index}
+                                            onDragOver={(e) => { if(!placedPiece) e.preventDefault(); }}
+                                            onDrop={(e) => handleDropOnSlot(e, index)}
+                                            className="absolute border border-white/5 box-border"
+                                            style={{
+                                                top: `${(r/diff.rows)*100}%`, left: `${(c/diff.cols)*100}%`,
+                                                width: `${100/diff.cols}%`, height: `${100/diff.rows}%`,
+                                                zIndex: placedPiece ? 10 : 1
+                                            }}
+                                        >
+                                            {/* Droppable Area Indicator (Faint) */}
+                                            {!placedPiece && (
+                                                <div className="w-full h-full opacity-0 hover:opacity-100 bg-white/5 transition-opacity duration-200"></div>
+                                            )}
+                                            
+                                            {placedPiece && (
+                                                <div 
+                                                    className="absolute animate-pop" 
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, placedPiece.id, 'board', index)}
+                                                    style={{
+                                                        top: '-25%', left: '-25%', width: '150%', height: '150%', 
+                                                        filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.5))',
+                                                        cursor: 'grab'
+                                                    }}
+                                                >
+                                                     <PuzzlePieceSVG 
+                                                        shape={placedPiece.shape}
+                                                        imageUrl={config.imageUrl}
+                                                        row={placedPiece.row} col={placedPiece.col} 
+                                                        cols={diff.cols} rows={diff.rows}
+                                                        isPlaced={true}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
