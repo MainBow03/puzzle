@@ -100,11 +100,13 @@
             { id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" }
         ];
 
+        // Ribilanciamento per formati rettangolari (Landscape/Portrait standard)
+        // Evitiamo 1x2 (50 pz in 5x10) o 1:1 (49 pz in 7x7) che deformano troppo le foto standard.
         const DIFFICULTIES = [
-            { label: "Facile", pieces: 15, cols: 3, rows: 5 },
-            { label: "Normale", pieces: 20, cols: 4, rows: 5 },
-            { label: "Avanzato", pieces: 30, cols: 5, rows: 6 },
-            { label: "Difficile", pieces: 50, cols: 5, rows: 10 }
+            { label: "Facile", pieces: 12, cols: 4, rows: 3 },     // 4:3 Standard
+            { label: "Normale", pieces: 24, cols: 6, rows: 4 },    // 3:2 Standard
+            { label: "Avanzato", pieces: 30, cols: 6, rows: 5 },   // 6:5 (Quello che ti piaceva)
+            { label: "Difficile", pieces: 48, cols: 8, rows: 6 }   // 4:3 Standard (Molto meglio di 7x7 o 5x10)
         ];
 
         // --- Jigsaw Logic ---
