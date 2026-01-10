@@ -62,6 +62,34 @@
             background: rgba(255, 255, 255, 0.1);
             box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
         }
+
+        /* Attack Effects */
+        .effect-ice {
+            position: absolute; inset: 0; pointer-events: all; z-index: 50;
+            background: rgba(180, 220, 255, 0.4);
+            backdrop-filter: blur(2px) brightness(1.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 5rem; color: white; text-shadow: 0 0 20px blue;
+            animation: freezeIn 0.5s ease-out;
+            border: 10px solid rgba(255, 255, 255, 0.5);
+        }
+        @keyframes freezeIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+
+        .effect-fog {
+            animation: fogPulse 4s infinite alternate;
+        }
+        @keyframes fogPulse { 
+            0% { filter: blur(3px) brightness(0.8); } 
+            100% { filter: blur(6px) brightness(0.9); } 
+        }
+
+        .target-mode {
+            animation: pulseRed 1s infinite;
+        }
+        @keyframes pulseRed {
+            0%, 100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7); }
+            50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body>
@@ -108,21 +136,15 @@
             { label: "Malvagia", pieces: 80, cols: 10, rows: 8 }
         ];
 
-        // Increased tabSize slightly for better interlocking visuals
         const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
             const tabSize = Math.min(width, height) * 0.25; 
-            const w = width;
-            const h = height;
+            const w = width; const h = height;
             let path = `M 0 0`;
             const t = topTab || 0; const r = rightTab || 0; const b = bottomTab || 0; const l = leftTab || 0;
-            if (t === 0) path += ` L ${w} 0`;
-            else { path += ` L ${w * 0.35} 0`; path += ` C ${w * 0.35} ${t * tabSize * -1}, ${w * 0.65} ${t * tabSize * -1}, ${w * 0.65} 0`; path += ` L ${w} 0`; }
-            if (r === 0) path += ` L ${w} ${h}`;
-            else { path += ` L ${w} ${h * 0.35}`; path += ` C ${w + r * tabSize} ${h * 0.35}, ${w + r * tabSize} ${h * 0.65}, ${w} ${h * 0.65}`; path += ` L ${w} ${h}`; }
-            if (b === 0) path += ` L 0 ${h}`;
-            else { path += ` L ${w * 0.65} ${h}`; path += ` C ${w * 0.65} ${h + b * tabSize}, ${w * 0.35} ${h + b * tabSize}, ${w * 0.35} ${h}`; path += ` L 0 ${h}`; }
-            if (l === 0) path += ` L 0 0`;
-            else { path += ` L 0 ${h * 0.65}`; path += ` C ${l * tabSize * -1} ${h * 0.65}, ${l * tabSize * -1} ${h * 0.35}, 0 ${h * 0.35}`; path += ` L 0 0`; }
+            if (t === 0) path += ` L ${w} 0`; else { path += ` L ${w * 0.35} 0`; path += ` C ${w * 0.35} ${t * tabSize * -1}, ${w * 0.65} ${t * tabSize * -1}, ${w * 0.65} 0`; path += ` L ${w} 0`; }
+            if (r === 0) path += ` L ${w} ${h}`; else { path += ` L ${w} ${h * 0.35}`; path += ` C ${w + r * tabSize} ${h * 0.35}, ${w + r * tabSize} ${h * 0.65}, ${w} ${h * 0.65}`; path += ` L ${w} ${h}`; }
+            if (b === 0) path += ` L 0 ${h}`; else { path += ` L ${w * 0.65} ${h}`; path += ` C ${w * 0.65} ${h + b * tabSize}, ${w * 0.35} ${h + b * tabSize}, ${w * 0.35} ${h}`; path += ` L 0 ${h}`; }
+            if (l === 0) path += ` L 0 0`; else { path += ` L 0 ${h * 0.65}`; path += ` C ${l * tabSize * -1} ${h * 0.65}, ${l * tabSize * -1} ${h * 0.35}, 0 ${h * 0.35}`; path += ` L 0 0`; }
             return path;
         };
 
@@ -163,7 +185,7 @@
                 const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 const initialData = {
                     id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
-                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null }],
+                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} }],
                     rankings: [], createdAt: new Date().toISOString()
                 };
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
@@ -179,7 +201,7 @@
                     if (data.status !== 'waiting') { setError("Partita già iniziata!"); return; }
                     if (!data.players.find(p => p.uid === user.uid)) {
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
-                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null })
+                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} })
                         });
                     }
                     setRoomId(rId); setView("room");
@@ -332,7 +354,6 @@
 
         const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
             if (!shape) return null;
-            // Precise padding calculation: 35 is 35% of 100
             const unitW = 100; const unitH = 100;
             const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
             const totalW = unitW * cols; const totalH = unitH * rows;
@@ -345,7 +366,6 @@
                         <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
                         {!isPlaced && <path d={pathData} fill="white" fillOpacity="0.1" />}
                     </g>
-                    {/* Only show stroke if NOT placed, to create seamless merge */}
                     {!isPlaced && <path d={pathData} fill="none" stroke="#222" strokeWidth="1" />}
                 </svg>
             );
@@ -360,13 +380,34 @@
             const [boardState, setBoardState] = React.useState({}); 
             const [timer, setTimer] = React.useState(0);
             const [showHelper, setShowHelper] = React.useState(false);
+            
+            // Cooldowns
             const [helperCooldown, setHelperCooldown] = React.useState(0);
             const [magicCooldown, setMagicCooldown] = React.useState(0);
+            const [iceCooldown, setIceCooldown] = React.useState(0);
+            const [fogCooldown, setFogCooldown] = React.useState(0);
+
+            // Drag State
             const [dragState, setDragState] = React.useState(null);
             const [hoveredSlot, setHoveredSlot] = React.useState(null);
             
+            // Zoom & Pan State
+            const [transform, setTransform] = React.useState({ x: 0, y: 0, scale: 1 });
+            const [pinchDist, setPinchDist] = React.useState(null);
+            const [isPanning, setIsPanning] = React.useState(false);
+
+            // Attack State
+            const [selectedAttack, setSelectedAttack] = React.useState(null); // 'ice' | 'fog' | null
+
             const allPiecesRef = React.useRef({});
             const myFinishRef = React.useRef(false);
+
+            // Active Effects on ME
+            const myPlayer = room.players.find(p => p.uid === user.uid);
+            const frozenUntil = myPlayer?.effects?.frozenUntil || 0;
+            const blindedUntil = myPlayer?.effects?.blindedUntil || 0;
+            const isFrozen = Date.now() < frozenUntil;
+            const isBlinded = Date.now() < blindedUntil;
 
             React.useEffect(() => {
                 const initialBank = []; const allP = {}; const allShapes = {};
@@ -391,13 +432,16 @@
             }, []);
 
             React.useEffect(() => {
-                if(helperCooldown > 0) { const i = setInterval(() => setHelperCooldown(c => c - 1), 1000); return () => clearInterval(i); }
-            }, [helperCooldown]);
+                const t = setInterval(() => {
+                    if(helperCooldown > 0) setHelperCooldown(c => c - 1);
+                    if(magicCooldown > 0) setMagicCooldown(c => c - 1);
+                    if(iceCooldown > 0) setIceCooldown(c => c - 1);
+                    if(fogCooldown > 0) setFogCooldown(c => c - 1);
+                }, 1000);
+                return () => clearInterval(t);
+            }, [helperCooldown, magicCooldown, iceCooldown, fogCooldown]);
             
-            React.useEffect(() => {
-                if(magicCooldown > 0) { const i = setInterval(() => setMagicCooldown(c => c - 1), 1000); return () => clearInterval(i); }
-            }, [magicCooldown]);
-            
+            // Victory & Progress Logic
             React.useEffect(() => {
                 if (Object.keys(allPiecesRef.current).length === 0) return;
                 let correctCount = 0; let isComplete = true;
@@ -425,6 +469,7 @@
             }, [boardState]);
 
             const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
+                 if (isFrozen) return; // Cannot drop if frozen
                  const pieceObj = allPiecesRef.current[pieceId];
                  if (!pieceObj) return;
                  if (targetType === 'slot') {
@@ -443,6 +488,36 @@
                  setHoveredSlot(null);
             };
 
+            const toggleAttackMode = (type) => {
+                if (selectedAttack === type) setSelectedAttack(null);
+                else setSelectedAttack(type);
+            };
+
+            const launchAttack = async (targetUid) => {
+                if (!selectedAttack) return;
+                
+                // Determine cooldown based on type
+                if (selectedAttack === 'ice') setIceCooldown(45);
+                if (selectedAttack === 'fog') setFogCooldown(60);
+
+                const type = selectedAttack;
+                setSelectedAttack(null); // Reset mode immediately after firing
+
+                // Update Firebase target
+                const updatedPlayers = room.players.map(p => {
+                    if (p.uid === targetUid) {
+                        let newEffects = { ...p.effects };
+                        const now = Date.now();
+                        if (type === 'ice') newEffects.frozenUntil = now + 5000; // 5s
+                        if (type === 'fog') newEffects.blindedUntil = now + 15000; // 15s
+                        return { ...p, effects: newEffects };
+                    }
+                    return p;
+                });
+                
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers });
+            };
+
             const sortedPlayers = [...room.players].sort((a, b) => {
                 if (a.finished && b.finished) return a.finishTime - b.finishTime;
                 if (a.finished) return -1; if (b.finished) return 1;
@@ -450,6 +525,42 @@
             });
 
             const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+
+            // Zoom Handlers
+            const handleWheel = (e) => {
+                if(e.ctrlKey) e.preventDefault(); 
+                const scaleFactor = 0.1;
+                const delta = -Math.sign(e.deltaY) * scaleFactor;
+                setTransform(prev => {
+                    const newScale = Math.max(0.5, Math.min(prev.scale + delta, 3));
+                    return { ...prev, scale: newScale };
+                });
+            };
+
+            const handleBoardTouchStart = (e) => {
+                if (e.touches.length === 2) {
+                    setIsPanning(true);
+                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    setPinchDist(d);
+                }
+            };
+            
+            const handleBoardTouchMove = (e) => {
+                if (e.touches.length === 2 && isPanning) {
+                    e.preventDefault();
+                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    if (pinchDist) {
+                        const delta = d - pinchDist;
+                        setTransform(prev => {
+                            const newScale = Math.max(0.5, Math.min(prev.scale + delta * 0.005, 3));
+                            return { ...prev, scale: newScale };
+                        });
+                    }
+                    setPinchDist(d);
+                }
+            };
+            
+            const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
 
             return (
                 <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
@@ -462,7 +573,8 @@
                         else setHoveredSlot(null);
                      }}
                      onTouchEnd={(e) => {
-                        if (!dragState) return;
+                         setIsPanning(false);
+                         if (!dragState) return;
                         const t = e.changedTouches[0];
                         const target = document.elementFromPoint(t.clientX, t.clientY);
                         let found = false;
@@ -481,6 +593,9 @@
                         setDragState(null); setHoveredSlot(null);
                      }}>
 
+                    {/* Attack Overlays */}
+                    {isFrozen && <div className="effect-ice">CONGELATO!</div>}
+                    
                     {dragState && (
                         <div style={{ position: 'fixed', left: dragState.x, top: dragState.y, width: '70px', height: '70px', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 9999 }}>
                             <PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
@@ -495,29 +610,70 @@
 
                     {/* Sidebar */}
                     <div className="w-full md:w-80 bg-slate-800 flex flex-col border-b md:border-r border-slate-700 z-20 shadow-2xl relative flex-shrink-0 max-h-[40vh] md:max-h-full md:h-full">
-                        <div className="p-3 border-b border-slate-700 flex justify-between items-center md:flex-col md:items-stretch gap-2">
-                            <div className="flex flex-col">
-                                <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Tempo</span>
-                                <span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(15); }, 5000); }}} disabled={helperCooldown > 0} className={`p-2 flex-1 rounded-lg font-bold text-xs transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 text-white'}`}>👁 {helperCooldown > 0 ? helperCooldown : 'Img'}</button>
+                        <div className="p-3 border-b border-slate-700 space-y-2">
+                             <div className="flex justify-between items-center">
+                                 <div>
+                                    <span className="text-xs text-gray-400 uppercase font-bold tracking-wider block">Tempo</span>
+                                    <span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
+                                 </div>
+                                 <button onClick={resetZoom} className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">Reset View</button>
+                             </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                                <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(15); }, 5000); }}} disabled={helperCooldown > 0} className={`p-2 rounded-lg font-bold text-xs transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 text-white'}`}>👁 {helperCooldown > 0 ? helperCooldown : 'Img'}</button>
                                 <button onClick={() => { if(magicCooldown<=0 && bankPieces.length>0){ 
                                     const id = bankPieces[Math.floor(Math.random()*bankPieces.length)];
                                     executeDrop(id, 'bank', null, 'slot', id);
                                     setMagicCooldown(120);
-                                }}} disabled={magicCooldown > 0 || bankPieces.length===0} className={`p-2 flex-1 rounded-lg font-bold text-xs transition ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
+                                }}} disabled={magicCooldown > 0 || bankPieces.length===0} className={`p-2 rounded-lg font-bold text-xs transition ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
                             </div>
+
+                             {/* Offensive Powers */}
+                             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
+                                <button 
+                                    onClick={() => toggleAttackMode('ice')} 
+                                    disabled={iceCooldown > 0} 
+                                    className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
+                                        selectedAttack === 'ice' ? 'bg-cyan-500 ring-2 ring-white animate-pulse' : 
+                                        iceCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-cyan-600 text-white'
+                                    }`}>
+                                    <span>{selectedAttack === 'ice' ? 'Scegli...' : '❄️ Ghiaccio'}</span>
+                                    {iceCooldown > 0 && <span>{iceCooldown}s</span>}
+                                </button>
+                                <button 
+                                    onClick={() => toggleAttackMode('fog')} 
+                                    disabled={fogCooldown > 0} 
+                                    className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
+                                        selectedAttack === 'fog' ? 'bg-gray-400 ring-2 ring-white animate-pulse text-black' : 
+                                        fogCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-gray-500 text-white'
+                                    }`}>
+                                    <span>{selectedAttack === 'fog' ? 'Scegli...' : '☁️ Nebbia'}</span>
+                                    {fogCooldown > 0 && <span>{fogCooldown}s</span>}
+                                </button>
+                            </div>
+                            {selectedAttack && <div className="text-center text-xs text-yellow-300 font-bold animate-bounce">Clicca un avversario!</div>}
                         </div>
 
                         {/* Leaderboard */}
                         <div className="p-2 space-y-1 overflow-y-auto max-h-20 md:max-h-40 border-b border-slate-700 bg-slate-900/40">
-                             {sortedPlayers.map((p, idx) => (
-                                <div key={p.uid} className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 rounded ${p.uid === user.uid ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30' : 'bg-slate-800/40'}`}>
-                                    <span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
-                                    {p.finished ? <span className="text-yellow-400 font-mono">🏆 {formatTime(p.finishTime)}</span> : <span className="text-green-400">{p.progress}%</span>}
-                                </div>
-                            ))}
+                             {sortedPlayers.map((p, idx) => {
+                                 const isTargetable = selectedAttack && p.uid !== user.uid;
+                                 return (
+                                    <div 
+                                        key={p.uid} 
+                                        onClick={() => { if(isTargetable) launchAttack(p.uid); }}
+                                        className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 rounded transition
+                                            ${p.uid === user.uid ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30' : 'bg-slate-800/40'}
+                                            ${isTargetable ? 'cursor-pointer hover:bg-red-500/30 ring-2 ring-red-500 scale-[1.02]' : ''}
+                                        `}>
+                                        <div className="flex items-center gap-1 overflow-hidden">
+                                            {isTargetable && <span className="text-lg animate-pulse">🎯</span>}
+                                            <span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
+                                        </div>
+                                        {p.finished ? <span className="text-yellow-400 font-mono">🏆 {formatTime(p.finishTime)}</span> : <span className="text-green-400">{p.progress}%</span>}
+                                    </div>
+                                )
+                             })}
                         </div>
                         
                         {/* Piece Bank */}
@@ -530,8 +686,10 @@
                              }}>
                              <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
                                 {bankPieces.map((id) => (
-                                    <div key={id} draggable onDragStart={(e) => { e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
-                                         onTouchStart={(e) => handleTouchStart(e, id, 'bank')} className="aspect-square puzzle-piece-container relative">
+                                    <div key={id} draggable={!isFrozen} 
+                                         onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
+                                         onTouchStart={(e) => { if(!isFrozen) handleTouchStart(e, id, 'bank'); }} 
+                                         className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
                                         <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
                                     </div>
                                 ))}
@@ -540,9 +698,17 @@
                     </div>
 
                     {/* Main Board */}
-                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-1 md:p-6 overflow-hidden relative">
-                        <div className="relative shadow-2xl bg-slate-900/30 border border-white/5" 
-                             style={{ width: '100%', maxWidth: '95vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '92%' }}>
+                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-0 overflow-hidden relative"
+                         onWheel={handleWheel}
+                         onTouchStart={handleBoardTouchStart}
+                         onTouchMove={handleBoardTouchMove}
+                         onDoubleClick={resetZoom}
+                    >
+                        <div className={`relative shadow-2xl bg-slate-900/30 border border-white/5 transition-transform duration-100 ease-out origin-center ${isBlinded ? 'effect-fog' : ''}`}
+                             style={{ 
+                                 width: '100%', maxWidth: '95vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '92%',
+                                 transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`
+                             }}>
                             <div className="w-full h-full relative grid" style={{ gridTemplateColumns: `repeat(${diff.cols}, 1fr)`, gridTemplateRows: `repeat(${diff.rows}, 1fr)` }}>
                                 {Array.from({ length: diff.pieces }).map((_, index) => {
                                     const piece = boardState[index];
@@ -561,11 +727,10 @@
                                             {piece && (
                                                 <div 
                                                     className="absolute animate-pop z-10" 
-                                                    // Precise sizing to eliminate gaps: 170% width, -35% offset matches SVG viewBox padding logic
                                                     style={{ width: '170%', height: '170%', top: '-35%', left: '-35%' }}
-                                                    draggable 
-                                                    onDragStart={(e) => { e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
-                                                    onTouchStart={(e) => handleTouchStart(e, piece.id, 'board', index)}
+                                                    draggable={!isFrozen}
+                                                    onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
+                                                    onTouchStart={(e) => { if(!isFrozen) handleTouchStart(e, piece.id, 'board', index); }}
                                                 >
                                                      <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
                                                 </div>
