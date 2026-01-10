@@ -37,6 +37,7 @@
             transition: transform 0.1s;
             filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
             cursor: grab;
+            touch-action: none; /* CRITICO per Tablet: impedisce lo scroll mentre si trascina */
         }
         .puzzle-piece-container:active {
             cursor: grabbing;
@@ -562,36 +563,61 @@
             
             const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
 
+            // Robust Drop Handler for Touch
+            const handleTouchEndGlobal = (e) => {
+                setIsPanning(false);
+                if (!dragState) return;
+
+                // Stop propagation to prevent ghost clicks
+                if(e.cancelable) e.preventDefault();
+
+                const t = e.changedTouches[0];
+                const target = document.elementFromPoint(t.clientX, t.clientY);
+                
+                let found = false;
+                let current = target;
+                
+                // Traverse up to find a valid drop target
+                while(current) {
+                    if (current.dataset?.slotIndex !== undefined) {
+                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', parseInt(current.dataset.slotIndex));
+                        found = true; 
+                        break;
+                    }
+                    if (current.id === 'piece-bank') {
+                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
+                        found = true; 
+                        break;
+                    }
+                    current = current.parentElement;
+                }
+                setDragState(null); 
+                setHoveredSlot(null);
+            };
+
             return (
                 <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
                      onTouchMove={(e) => {
-                        if (!dragState) return; e.preventDefault();
+                        if (!dragState) return; 
+                        // e.preventDefault(); // Sometimes prevents scroll too aggressively on some devices
                         const t = e.touches[0];
                         setDragState(prev => ({ ...prev, x: t.clientX, y: t.clientY }));
+                        
                         const target = document.elementFromPoint(t.clientX, t.clientY);
-                        if (target?.dataset?.slotIndex) setHoveredSlot(parseInt(target.dataset.slotIndex));
-                        else setHoveredSlot(null);
-                     }}
-                     onTouchEnd={(e) => {
-                         setIsPanning(false);
-                         if (!dragState) return;
-                        const t = e.changedTouches[0];
-                        const target = document.elementFromPoint(t.clientX, t.clientY);
-                        let found = false;
                         let current = target;
-                        while(current) {
+                        let foundSlot = null;
+                         while(current) {
                             if (current.dataset?.slotIndex !== undefined) {
-                                executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', parseInt(current.dataset.slotIndex));
-                                found = true; break;
-                            }
-                            if (current.id === 'piece-bank') {
-                                executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
-                                found = true; break;
+                                foundSlot = parseInt(current.dataset.slotIndex);
+                                break;
                             }
                             current = current.parentElement;
                         }
-                        setDragState(null); setHoveredSlot(null);
-                     }}>
+                        if (foundSlot !== null) setHoveredSlot(foundSlot);
+                        else setHoveredSlot(null);
+                     }}
+                     onTouchEnd={handleTouchEndGlobal}
+                >
 
                     {/* Attack Overlays */}
                     {isFrozen && <div className="effect-ice">CONGELATO!</div>}
@@ -670,7 +696,13 @@
                                             {isTargetable && <span className="text-lg animate-pulse">🎯</span>}
                                             <span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
                                         </div>
-                                        {p.finished ? <span className="text-yellow-400 font-mono">🏆 {formatTime(p.finishTime)}</span> : <span className="text-green-400">{p.progress}%</span>}
+                                        {p.finished ? 
+                                            <span className="text-yellow-400 font-mono text-[10px]">🏆 {formatTime(p.finishTime)}</span> 
+                                            : 
+                                            <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden ml-2">
+                                                <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
+                                            </div>
+                                        }
                                     </div>
                                 )
                              })}
@@ -687,6 +719,8 @@
                              <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
                                 {bankPieces.map((id) => (
                                     <div key={id} draggable={!isFrozen} 
+                                         onContextMenu={(e) => e.preventDefault()}
+                                         style={{ touchAction: 'none' }}
                                          onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
                                          onTouchStart={(e) => { if(!isFrozen) handleTouchStart(e, id, 'bank'); }} 
                                          className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
@@ -723,12 +757,13 @@
                                                  const src = e.dataTransfer.getData("source");
                                                  executeDrop(id, src, src === 'board' ? parseInt(e.dataTransfer.getData("srcSlot")) : null, 'slot', index);
                                              }}>
-                                            {!piece && <div className="absolute inset-0 flex items-center justify-center"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
+                                            {!piece && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
                                             {piece && (
                                                 <div 
                                                     className="absolute animate-pop z-10" 
-                                                    style={{ width: '170%', height: '170%', top: '-35%', left: '-35%' }}
+                                                    style={{ width: '170%', height: '170%', top: '-35%', left: '-35%', touchAction: 'none' }}
                                                     draggable={!isFrozen}
+                                                    onContextMenu={(e) => e.preventDefault()}
                                                     onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
                                                     onTouchStart={(e) => { if(!isFrozen) handleTouchStart(e, piece.id, 'board', index); }}
                                                 >
