@@ -469,12 +469,21 @@
                 updateRemote();
             }, [boardState]);
 
+            const playDropSound = () => {
+                const audio = new Audio('http://googleusercontent.com/file_content/1');
+                audio.volume = 0.5;
+                audio.play().catch(e => console.error("Audio play failed:", e));
+            };
+
             const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
                  if (isFrozen) return; // Cannot drop if frozen
                  const pieceObj = allPiecesRef.current[pieceId];
                  if (!pieceObj) return;
                  if (targetType === 'slot') {
                      if (boardState[targetIndex]) return; 
+                     
+                     playDropSound();
+
                      setBoardState(prev => {
                          const newState = { ...prev, [targetIndex]: pieceObj };
                          if (source === 'board') delete newState[srcSlot];
