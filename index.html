@@ -37,7 +37,7 @@
             transition: transform 0.1s;
             filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
             cursor: grab;
-            touch-action: none; /* CRITICO per Tablet: impedisce lo scroll mentre si trascina */
+            touch-action: none; /* Fondamentale per il drag immediato su mobile */
         }
         .puzzle-piece-container:active {
             cursor: grabbing;
@@ -470,7 +470,7 @@
             }, [boardState]);
 
             const playDropSound = () => {
-                const audio = new Audio('http://googleusercontent.com/file_content/1');
+                const audio = new Audio('https://uploaded-confirm-tap-394001-2e6ddb51-7893-4a0b-90f7-a548c267b2d2.s3.us-east-1.amazonaws.com/confirm-tap-394001.mp3');
                 audio.volume = 0.5;
                 audio.play().catch(e => console.error("Audio play failed:", e));
             };
@@ -571,6 +571,20 @@
             };
             
             const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
+
+            // Dedicated Touch Start for pieces (fixes hold delay)
+            const handlePieceTouchStart = (e, pieceId, source, slotIndex = null) => {
+                 e.preventDefault(); // Stop instant scroll/context
+                 e.stopPropagation(); // Stop board pan
+                 const touch = e.touches[0];
+                 setDragState({
+                    pieceId,
+                    source,
+                    srcSlot: slotIndex,
+                    x: touch.clientX,
+                    y: touch.clientY
+                 });
+            };
 
             // Robust Drop Handler for Touch
             const handleTouchEndGlobal = (e) => {
@@ -731,7 +745,7 @@
                                          onContextMenu={(e) => e.preventDefault()}
                                          style={{ touchAction: 'none' }}
                                          onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
-                                         onTouchStart={(e) => { if(!isFrozen) handleTouchStart(e, id, 'bank'); }} 
+                                         onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, id, 'bank'); }} 
                                          className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
                                         <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
                                     </div>
@@ -774,7 +788,7 @@
                                                     draggable={!isFrozen}
                                                     onContextMenu={(e) => e.preventDefault()}
                                                     onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
-                                                    onTouchStart={(e) => { if(!isFrozen) handleTouchStart(e, piece.id, 'board', index); }}
+                                                    onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, piece.id, 'board', index); }}
                                                 >
                                                      <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
                                                 </div>
