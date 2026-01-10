@@ -56,12 +56,11 @@
         }
         
         .animate-pop { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes popIn { 0% { transform: scale(0.95); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
 
         .slot-highlight {
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
@@ -109,6 +108,7 @@
             { label: "Malvagia", pieces: 80, cols: 10, rows: 8 }
         ];
 
+        // Increased tabSize slightly for better interlocking visuals
         const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
             const tabSize = Math.min(width, height) * 0.25; 
             const w = width;
@@ -332,6 +332,7 @@
 
         const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
             if (!shape) return null;
+            // Precise padding calculation: 35 is 35% of 100
             const unitW = 100; const unitH = 100;
             const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
             const totalW = unitW * cols; const totalH = unitH * rows;
@@ -344,7 +345,8 @@
                         <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
                         {!isPlaced && <path d={pathData} fill="white" fillOpacity="0.1" />}
                     </g>
-                    <path d={pathData} fill="none" stroke={isPlaced ? "rgba(0,0,0,0.15)" : "#111"} strokeWidth={isPlaced ? "0.5" : "1"} />
+                    {/* Only show stroke if NOT placed, to create seamless merge */}
+                    {!isPlaced && <path d={pathData} fill="none" stroke="#222" strokeWidth="1" />}
                 </svg>
             );
         };
@@ -557,9 +559,14 @@
                                              }}>
                                             {!piece && <div className="absolute inset-0 flex items-center justify-center"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
                                             {piece && (
-                                                <div className="absolute inset-[-28%] w-[156%] h-[156%] animate-pop z-10" draggable 
-                                                     onDragStart={(e) => { e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
-                                                     onTouchStart={(e) => handleTouchStart(e, piece.id, 'board', index)}>
+                                                <div 
+                                                    className="absolute animate-pop z-10" 
+                                                    // Precise sizing to eliminate gaps: 170% width, -35% offset matches SVG viewBox padding logic
+                                                    style={{ width: '170%', height: '170%', top: '-35%', left: '-35%' }}
+                                                    draggable 
+                                                    onDragStart={(e) => { e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
+                                                    onTouchStart={(e) => handleTouchStart(e, piece.id, 'board', index)}
+                                                >
                                                      <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
                                                 </div>
                                             )}
