@@ -126,7 +126,14 @@
             { id: 5, name: "Zatch Bell", url: "https://i.pinimg.com/1200x/6c/88/20/6c8820d0e1f2a40f354c17ec1d0cbb8c.jpg" },
             { id: 6, name: "Peter Griffin", url: "https://i.pinimg.com/736x/eb/42/ad/eb42ad94041c9f07a1edce34b70950c7.jpg" },
             { id: 7, name: "Carlos Oliveira", url: "https://i.pinimg.com/736x/45/a7/73/45a7735ae9d38f96795c928a004b5618.jpg" },
-            { id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" }
+            { id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" },
+            { id: 9, name: "Mimikyu", url: "https://i.pinimg.com/736x/ad/21/a2/ad21a2edf382cb8b7267b118bd2bd601.jpg" },
+            { id: 10, name: "Paesaggio", url: "https://i.pinimg.com/1200x/38/e0/e7/38e0e7cbb3531376521b0e8dea024c33.jpg" },
+            { id: 11, name: "Girly girlz", url: "https://i.pinimg.com/1200x/58/71/f6/5871f61d16d6a2e114e6e35bcc70d0af.jpg" },
+            { id: 12, name: "Marceline", url: "https://i.pinimg.com/1200x/4b/e4/aa/4be4aad14bc8e9f73dc9e68cf885c2f0.jpg" },
+            { id: 13, name: "Montagne", url: "https://i.pinimg.com/736x/87/b2/ef/87b2ef65c5685e15c4eca157357fdf1f.jpg" },
+            { id: 14, name: "Sega", url: "https://i.pinimg.com/736x/65/da/fb/65dafbd79828861f9c8060b71d932f85.jpg" },
+            { id: 15, name: "Sega Rogers", url: "https://i.pinimg.com/1200x/3e/e2/28/3ee22857e7e927bcd89b9ead6f4274b0.jpg" }
         ];
 
         const DIFFICULTIES = [
@@ -152,8 +159,10 @@
         function App() {
             const [user, setUser] = React.useState(null);
             const [view, setView] = React.useState("loading"); 
-            const [nickname, setNickname] = React.useState("");
-            const [roomId, setRoomId] = React.useState(null);
+            // Load persist data
+            const [nickname, setNickname] = React.useState(localStorage.getItem("puzzle_nickname") || "");
+            const [roomId, setRoomId] = React.useState(localStorage.getItem("puzzle_roomId") || null);
+            
             const [roomData, setRoomData] = React.useState(null);
             const [error, setError] = React.useState("");
 
@@ -165,22 +174,58 @@
                     } else { await signInAnonymously(auth); }
                 };
                 initAuth();
-                return onAuthStateChanged(auth, (u) => { if (u) { setUser(u); setView("login"); } });
+                return onAuthStateChanged(auth, (u) => { 
+                    if (u) { 
+                        setUser(u); 
+                        if (!roomId) setView("login"); 
+                        // If roomId exists, let the room listener handle the view transition
+                    } 
+                });
             }, []);
 
             React.useEffect(() => {
                 if (!roomId || !user) return;
+                
+                // Show loading while reconnecting
+                if (view === "login") setView("loading");
+
                 const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         setRoomData(data);
-                        if (data.status === 'playing' && view === 'room') setView('game');
-                    } else { setError("Stanza chiusa."); setView("lobby"); setRoomId(null); }
+                        
+                        // Auto-reconnect logic
+                        if (data.status === 'playing') {
+                            setView('game');
+                        } else if (data.status === 'waiting') {
+                            setView('room');
+                        }
+                    } else { 
+                        setError("Stanza non trovata o scaduta."); 
+                        localStorage.removeItem("puzzle_roomId");
+                        setRoomId(null);
+                        setView("lobby"); 
+                    }
+                }, (err) => {
+                     console.error("Room sync error", err);
                 });
                 return () => unsub();
-            }, [roomId, user, view]);
+            }, [roomId, user]);
 
-            const handleLogin = () => { if (nickname.trim()) setView("lobby"); };
+            const handleLogin = () => { 
+                if (nickname.trim()) {
+                    localStorage.setItem("puzzle_nickname", nickname);
+                    setView("lobby"); 
+                }
+            };
+            
+            const handleLeaveGame = () => {
+                localStorage.removeItem("puzzle_roomId");
+                localStorage.removeItem(`puzzle_state_${roomId}`); // Clear saved board
+                setRoomId(null);
+                setRoomData(null);
+                setView("lobby");
+            };
 
             const createRoom = async (config) => {
                 const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -190,7 +235,10 @@
                     rankings: [], createdAt: new Date().toISOString()
                 };
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
-                setRoomId(newRoomId); setRoomData(initialData); setView("room");
+                localStorage.setItem("puzzle_roomId", newRoomId);
+                setRoomId(newRoomId); 
+                setRoomData(initialData); 
+                setView("room");
             };
 
             const joinRoom = async (code) => {
@@ -205,7 +253,9 @@
                             players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} })
                         });
                     }
-                    setRoomId(rId); setView("room");
+                    localStorage.setItem("puzzle_roomId", rId);
+                    setRoomId(rId); 
+                    // Listener will switch view
                 } catch(e) { setError("Errore durante l'accesso."); }
             };
 
@@ -218,7 +268,7 @@
             if (view === "login") return <LoginScreen nickname={nickname} setNickname={setNickname} onEnter={handleLogin} />;
             if (view === "lobby") return <LobbyScreen onCreate={createRoom} onJoin={joinRoom} error={error} />;
             if (view === "room") return <WaitingRoom room={roomData} user={user} onStart={startGame} />;
-            if (view === "game") return <GameRoom room={roomData} user={user} nickname={nickname} roomId={roomId} appId={appId} />;
+            if (view === "game") return <GameRoom room={roomData} user={user} nickname={nickname} roomId={roomId} appId={appId} onLeave={handleLeaveGame} />;
             return <div>Error</div>;
         }
 
@@ -372,7 +422,7 @@
             );
         };
 
-        function GameRoom({ room, user, nickname, roomId, appId }) {
+        function GameRoom({ room, user, nickname, roomId, appId, onLeave }) {
             if (!room) return null;
             const config = room.config;
             const diff = DIFFICULTIES[config.difficultyIdx];
@@ -427,10 +477,51 @@
                     }
                 }
                 allPiecesRef.current = allP;
-                setBankPieces(initialBank.sort(() => Math.random() - 0.5));
+
+                // --- RESTORE STATE LOGIC ---
+                const savedState = localStorage.getItem(`puzzle_state_${roomId}`);
+                if (savedState) {
+                    try {
+                        const parsed = JSON.parse(savedState);
+                        const restoredBoard = {};
+                        // Re-attach piece objects from allP using saved IDs
+                        if (parsed.boardState) {
+                            Object.keys(parsed.boardState).forEach(key => {
+                                const pid = parsed.boardState[key].id;
+                                if(allP[pid]) restoredBoard[key] = allP[pid];
+                            });
+                        }
+                        setBoardState(restoredBoard);
+                        
+                        // Calculate bank pieces by removing board pieces from all pieces
+                        const boardIds = Object.values(restoredBoard).map(p => p.id);
+                        const newBank = initialBank.filter(id => !boardIds.includes(id));
+                        setBankPieces(newBank.sort(() => Math.random() - 0.5));
+                    } catch(e) {
+                        console.error("State restore error", e);
+                        setBankPieces(initialBank.sort(() => Math.random() - 0.5));
+                    }
+                } else {
+                    setBankPieces(initialBank.sort(() => Math.random() - 0.5));
+                }
+                
+                // Timer sync with server start time
+                if (room.startTime) {
+                    const start = new Date(room.startTime).getTime();
+                    const now = new Date().getTime();
+                    setTimer(Math.floor((now - start) / 1000));
+                }
+
                 const interval = setInterval(() => { if (!myFinishRef.current) setTimer(t => t + 1); }, 1000);
                 return () => clearInterval(interval);
             }, []);
+
+            // Save state on change
+            React.useEffect(() => {
+                if (Object.keys(boardState).length >= 0) { // Save even if empty to clear
+                     localStorage.setItem(`puzzle_state_${roomId}`, JSON.stringify({ boardState }));
+                }
+            }, [boardState, roomId]);
 
             React.useEffect(() => {
                 const t = setInterval(() => {
@@ -665,7 +756,10 @@
                                     <span className="text-xs text-gray-400 uppercase font-bold tracking-wider block">Tempo</span>
                                     <span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
                                  </div>
-                                 <button onClick={resetZoom} className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">Reset View</button>
+                                 <div className="flex gap-2">
+                                     <button onClick={resetZoom} className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">Reset View</button>
+                                     <button onClick={onLeave} className="bg-red-600/50 hover:bg-red-600 text-xs px-2 py-1 rounded text-white font-bold">Abbandona</button>
+                                 </div>
                              </div>
                             
                             <div className="grid grid-cols-2 gap-2">
