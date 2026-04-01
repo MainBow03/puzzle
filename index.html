@@ -1,911 +1,912 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Puzzle Battle Online</title>
-    
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Puzzle Battle Online</title>
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
-        
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #0f172a;
-            color: #e2e8f0;
-            overflow: hidden; 
-            touch-action: none; 
-            user-select: none;
-        }
+<!-- React & ReactDOM -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-        .puzzle-piece-container {
-            transition: transform 0.1s;
-            filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
-            cursor: grab;
-            touch-action: none; /* Fondamentale per il drag immediato su mobile */
-        }
-        .puzzle-piece-container:active {
-            cursor: grabbing;
-            transform: scale(1.1);
-            z-index: 100 !important;
-        }
+<!-- Babel -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 3px; }
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
 
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.9);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .animate-pop { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes popIn { 0% { transform: scale(0.95); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"></script>
 
-        .slot-highlight {
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
-        }
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
 
-        /* Attack Effects */
-        .effect-ice {
-            position: absolute; inset: 0; pointer-events: all; z-index: 50;
-            background: rgba(180, 220, 255, 0.4);
-            backdrop-filter: blur(2px) brightness(1.2);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 5rem; color: white; text-shadow: 0 0 20px blue;
-            animation: freezeIn 0.5s ease-out;
-            border: 10px solid rgba(255, 255, 255, 0.5);
-        }
-        @keyframes freezeIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+body {
+font-family: 'Poppins', sans-serif;
+background-color: #0f172a;
+color: #e2e8f0;
+overflow: hidden; 
+touch-action: none; 
+user-select: none;
+}
 
-        .effect-fog {
-            animation: fogPulse 4s infinite alternate;
-        }
-        @keyframes fogPulse { 
-            0% { filter: blur(3px) brightness(0.8); } 
-            100% { filter: blur(6px) brightness(0.9); } 
-        }
+.puzzle-piece-container {
+transition: transform 0.1s;
+filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
+cursor: grab;
+touch-action: none; /* Fondamentale per il drag immediato su mobile */
+}
+.puzzle-piece-container:active {
+cursor: grabbing;
+transform: scale(1.1);
+z-index: 100 !important;
+}
 
-        .target-mode {
-            animation: pulseRed 1s infinite;
-        }
-        @keyframes pulseRed {
-            0%, 100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7); }
-            50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
-        }
-    </style>
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1e293b; }
+::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 3px; }
+
+.glass-panel {
+background: rgba(30, 41, 59, 0.9);
+backdrop-filter: blur(12px);
+border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.animate-pop { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes popIn { 0% { transform: scale(0.95); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+
+.slot-highlight {
+background: rgba(255, 255, 255, 0.1);
+box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Attack Effects */
+.effect-ice {
+position: absolute; inset: 0; pointer-events: all; z-index: 50;
+background: rgba(180, 220, 255, 0.4);
+backdrop-filter: blur(2px) brightness(1.2);
+display: flex; align-items: center; justify-content: center;
+font-size: 5rem; color: white; text-shadow: 0 0 20px blue;
+animation: freezeIn 0.5s ease-out;
+border: 10px solid rgba(255, 255, 255, 0.5);
+}
+@keyframes freezeIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+
+.effect-fog {
+animation: fogPulse 4s infinite alternate;
+}
+@keyframes fogPulse { 
+0% { filter: blur(3px) brightness(0.8); } 
+100% { filter: blur(6px) brightness(0.9); } 
+}
+
+.target-mode {
+animation: pulseRed 1s infinite;
+}
+@keyframes pulseRed {
+0%, 100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7); }
+50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+</style>
 </head>
 <body>
-    <div id="root"></div>
+<div id="root"></div>
 
-    <script type="text/babel" data-type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, arrayUnion, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+<script type="text/babel" data-type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, arrayUnion, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyC6soOuVKv26G5gW1VicGAqsCknHA27kiU",
-            authDomain: "puzzle-multiplayer-89920.firebaseapp.com",
-            projectId: "puzzle-multiplayer-89920",
-            storageBucket: "puzzle-multiplayer-89920.firebasestorage.app",
-            messagingSenderId: "74756968916",
-            appId: "1:74756968916:web:2500a2e5d365a4af7ec641",
-            measurementId: "G-G8F8QCPFPH"
-        };
+const firebaseConfig = {
+apiKey: "AIzaSyC6soOuVKv26G5gW1VicGAqsCknHA27kiU",
+authDomain: "puzzle-multiplayer-89920.firebaseapp.com",
+projectId: "puzzle-multiplayer-89920",
+storageBucket: "puzzle-multiplayer-89920.firebasestorage.app",
+messagingSenderId: "74756968916",
+appId: "1:74756968916:web:2500a2e5d365a4af7ec641",
+measurementId: "G-G8F8QCPFPH"
+};
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const analytics = getAnalytics(app);
-        const appId = "puzzle-multiplayer-89920"; 
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const analytics = getAnalytics(app);
+const appId = "puzzle-multiplayer-89920"; 
 
-        const IMAGES = [
-            { id: 1, name: "Ariana Grande", url: "https://i.pinimg.com/736x/81/6e/fd/816efd9a00896efe89fd950f75b3f8d3.jpg" },
-            { id: 2, name: "Famiglia Watterson", url: "https://i.pinimg.com/736x/02/be/93/02be937944bca9b29d421287bcf7797a.jpg" },
-            { id: 3, name: "Crystal Gems", url: "https://i.pinimg.com/1200x/40/c4/3c/40c43c1bb7bdb12740d129a36ceaa1d2.jpg" },
-            { id: 4, name: "TomJake", url: "https://i.pinimg.com/736x/e5/d3/7a/e5d37a71cc1d60a88584825ab0309ed8.jpg" },
-            { id: 5, name: "Zatch Bell", url: "https://i.pinimg.com/1200x/6c/88/20/6c8820d0e1f2a40f354c17ec1d0cbb8c.jpg" },
-            { id: 6, name: "Peter Griffin", url: "https://i.pinimg.com/736x/eb/42/ad/eb42ad94041c9f07a1edce34b70950c7.jpg" },
-            { id: 7, name: "Carlos Oliveira", url: "https://i.pinimg.com/736x/45/a7/73/45a7735ae9d38f96795c928a004b5618.jpg" },
-            { id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" },
-            { id: 9, name: "Mimikyu", url: "https://i.pinimg.com/736x/ad/21/a2/ad21a2edf382cb8b7267b118bd2bd601.jpg" },
-            { id: 10, name: "Paesaggio", url: "https://i.pinimg.com/1200x/38/e0/e7/38e0e7cbb3531376521b0e8dea024c33.jpg" },
-            { id: 11, name: "Girly girlz", url: "https://i.pinimg.com/1200x/58/71/f6/5871f61d16d6a2e114e6e35bcc70d0af.jpg" },
-            { id: 12, name: "Marceline", url: "https://i.pinimg.com/1200x/4b/e4/aa/4be4aad14bc8e9f73dc9e68cf885c2f0.jpg" },
-            { id: 13, name: "Montagne", url: "https://i.pinimg.com/736x/87/b2/ef/87b2ef65c5685e15c4eca157357fdf1f.jpg" },
-            { id: 14, name: "Sega", url: "https://i.pinimg.com/736x/65/da/fb/65dafbd79828861f9c8060b71d932f85.jpg" },
+const IMAGES = [
+{ id: 1, name: "Ariana Grande", url: "https://i.pinimg.com/736x/81/6e/fd/816efd9a00896efe89fd950f75b3f8d3.jpg" },
+{ id: 2, name: "Famiglia Watterson", url: "https://i.pinimg.com/736x/02/be/93/02be937944bca9b29d421287bcf7797a.jpg" },
+{ id: 3, name: "Crystal Gems", url: "https://i.pinimg.com/1200x/40/c4/3c/40c43c1bb7bdb12740d129a36ceaa1d2.jpg" },
+{ id: 4, name: "TomJake", url: "https://i.pinimg.com/736x/e5/d3/7a/e5d37a71cc1d60a88584825ab0309ed8.jpg" },
+{ id: 5, name: "Zatch Bell", url: "https://i.pinimg.com/1200x/6c/88/20/6c8820d0e1f2a40f354c17ec1d0cbb8c.jpg" },
+{ id: 6, name: "Peter Griffin", url: "https://i.pinimg.com/736x/eb/42/ad/eb42ad94041c9f07a1edce34b70950c7.jpg" },
+{ id: 7, name: "Carlos Oliveira", url: "https://i.pinimg.com/736x/45/a7/73/45a7735ae9d38f96795c928a004b5618.jpg" },
+{ id: 8, name: "Master Peace", url: "https://i.pinimg.com/736x/27/1a/ae/271aaec5096c150d6414cd7f676f3671.jpg" },
+{ id: 9, name: "Mimikyu", url: "https://i.pinimg.com/736x/ad/21/a2/ad21a2edf382cb8b7267b118bd2bd601.jpg" },
+{ id: 10, name: "Paesaggio", url: "https://i.pinimg.com/1200x/38/e0/e7/38e0e7cbb3531376521b0e8dea024c33.jpg" },
+{ id: 11, name: "Girly girlz", url: "https://i.pinimg.com/1200x/58/71/f6/5871f61d16d6a2e114e6e35bcc70d0af.jpg" },
+{ id: 12, name: "Marceline", url: "https://i.pinimg.com/1200x/4b/e4/aa/4be4aad14bc8e9f73dc9e68cf885c2f0.jpg" },
+{ id: 13, name: "Montagne", url: "https://i.pinimg.com/736x/87/b2/ef/87b2ef65c5685e15c4eca157357fdf1f.jpg" },
+{ id: 14, name: "Sega", url: "https://i.pinimg.com/736x/65/da/fb/65dafbd79828861f9c8060b71d932f85.jpg" },
+            { id: 15, name: "Sega Rogers", url: "https://i.pinimg.com/1200x/3e/e2/28/3ee22857e7e927bcd89b9ead6f4274b0.jpg" }
 			{ id: 15, name: "Roserade", url: "https://i.pinimg.com/736x/04/b0/82/04b0825f7fa6b3ce710ecd4228cd1483.jpg" },
 			{ id: 16, name: "Hannibal Legato", url: "https://i.pinimg.com/736x/3c/6c/93/3c6c93f48e18a9f11e097e6f0accdeb2.jpg" },
 			{ id: 17, name: "Piplup", url: "https://i.pinimg.com/1200x/67/82/0b/67820b62507b544bf8dc037651dbd12e.jpg" },
 			{ id: 18, name: "Misty Gym", url: "https://i.pinimg.com/1200x/5c/80/27/5c8027e443f5acebbc24b2ce08997731.jpg" },
 			{ id: 19, name: "Aiden Profilo", url: "https://i.pinimg.com/736x/2a/3e/e2/2a3ee28f7fcdd18d411d3da62610420a.jpg" },
 			{ id: 20, name: "Ladybug", url: "https://i.pinimg.com/1200x/1a/df/a1/1adfa19602dfe3db483c83266cad83d5.jpg" },
+			{ id: 21, name: "Mason x Kieran", url: "https://i.pinimg.com/736x/9c/4c/47/9c4c47aa8170a5014f7cc840248c596b.jpg" },
 			{ id: 21, name: "You Are My World", url: "https://i.pinimg.com/736x/ba/29/0e/ba290eeee2a1924a7c2b9c341d292900.jpg" },
-            { id: 22, name: "Sfondami", url: "https://i.pinimg.com/1200x/22/4c/02/224c021c053b49e52ff6f6c15b214c1f.jpg" }
-        ];
+            { id: 23, name: "Sfondami", url: "https://i.pinimg.com/1200x/22/4c/02/224c021c053b49e52ff6f6c15b214c1f.jpg" }
+];
 
-        const DIFFICULTIES = [
-            { label: "Facile", pieces: 12, cols: 4, rows: 3 },     
-            { label: "Normale", pieces: 24, cols: 6, rows: 4 },    
-            { label: "Avanzato", pieces: 30, cols: 6, rows: 5 },   
-            { label: "Difficile", pieces: 48, cols: 8, rows: 6 },
-            { label: "Malvagia", pieces: 80, cols: 10, rows: 8 }
-        ];
+const DIFFICULTIES = [
+{ label: "Facile", pieces: 12, cols: 4, rows: 3 },     
+{ label: "Normale", pieces: 24, cols: 6, rows: 4 },    
+{ label: "Avanzato", pieces: 30, cols: 6, rows: 5 },   
+{ label: "Difficile", pieces: 48, cols: 8, rows: 6 },
+{ label: "Malvagia", pieces: 80, cols: 10, rows: 8 }
+];
 
-        const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
-            const tabSize = Math.min(width, height) * 0.25; 
-            const w = width; const h = height;
-            let path = `M 0 0`;
-            const t = topTab || 0; const r = rightTab || 0; const b = bottomTab || 0; const l = leftTab || 0;
-            if (t === 0) path += ` L ${w} 0`; else { path += ` L ${w * 0.35} 0`; path += ` C ${w * 0.35} ${t * tabSize * -1}, ${w * 0.65} ${t * tabSize * -1}, ${w * 0.65} 0`; path += ` L ${w} 0`; }
-            if (r === 0) path += ` L ${w} ${h}`; else { path += ` L ${w} ${h * 0.35}`; path += ` C ${w + r * tabSize} ${h * 0.35}, ${w + r * tabSize} ${h * 0.65}, ${w} ${h * 0.65}`; path += ` L ${w} ${h}`; }
-            if (b === 0) path += ` L 0 ${h}`; else { path += ` L ${w * 0.65} ${h}`; path += ` C ${w * 0.65} ${h + b * tabSize}, ${w * 0.35} ${h + b * tabSize}, ${w * 0.35} ${h}`; path += ` L 0 ${h}`; }
-            if (l === 0) path += ` L 0 0`; else { path += ` L 0 ${h * 0.65}`; path += ` C ${l * tabSize * -1} ${h * 0.65}, ${l * tabSize * -1} ${h * 0.35}, 0 ${h * 0.35}`; path += ` L 0 0`; }
-            return path;
-        };
+const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
+const tabSize = Math.min(width, height) * 0.25; 
+const w = width; const h = height;
+let path = `M 0 0`;
+const t = topTab || 0; const r = rightTab || 0; const b = bottomTab || 0; const l = leftTab || 0;
+if (t === 0) path += ` L ${w} 0`; else { path += ` L ${w * 0.35} 0`; path += ` C ${w * 0.35} ${t * tabSize * -1}, ${w * 0.65} ${t * tabSize * -1}, ${w * 0.65} 0`; path += ` L ${w} 0`; }
+if (r === 0) path += ` L ${w} ${h}`; else { path += ` L ${w} ${h * 0.35}`; path += ` C ${w + r * tabSize} ${h * 0.35}, ${w + r * tabSize} ${h * 0.65}, ${w} ${h * 0.65}`; path += ` L ${w} ${h}`; }
+if (b === 0) path += ` L 0 ${h}`; else { path += ` L ${w * 0.65} ${h}`; path += ` C ${w * 0.65} ${h + b * tabSize}, ${w * 0.35} ${h + b * tabSize}, ${w * 0.35} ${h}`; path += ` L 0 ${h}`; }
+if (l === 0) path += ` L 0 0`; else { path += ` L 0 ${h * 0.65}`; path += ` C ${l * tabSize * -1} ${h * 0.65}, ${l * tabSize * -1} ${h * 0.35}, 0 ${h * 0.35}`; path += ` L 0 0`; }
+return path;
+};
 
-        function App() {
-            const [user, setUser] = React.useState(null);
-            const [view, setView] = React.useState("loading"); 
-            // Load persist data
-            const [nickname, setNickname] = React.useState(localStorage.getItem("puzzle_nickname") || "");
-            const [roomId, setRoomId] = React.useState(localStorage.getItem("puzzle_roomId") || null);
-            
-            const [roomData, setRoomData] = React.useState(null);
-            const [error, setError] = React.useState("");
+function App() {
+const [user, setUser] = React.useState(null);
+const [view, setView] = React.useState("loading"); 
+// Load persist data
+const [nickname, setNickname] = React.useState(localStorage.getItem("puzzle_nickname") || "");
+const [roomId, setRoomId] = React.useState(localStorage.getItem("puzzle_roomId") || null);
 
-            React.useEffect(() => {
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                         try { await signInWithCustomToken(auth, __initial_auth_token); } 
-                         catch(e) { await signInAnonymously(auth); }
-                    } else { await signInAnonymously(auth); }
-                };
-                initAuth();
-                return onAuthStateChanged(auth, (u) => { 
-                    if (u) { 
-                        setUser(u); 
-                        if (!roomId) setView("login"); 
-                        // If roomId exists, let the room listener handle the view transition
-                    } 
-                });
-            }, []);
+const [roomData, setRoomData] = React.useState(null);
+const [error, setError] = React.useState("");
 
-            React.useEffect(() => {
-                if (!roomId || !user) return;
-                
-                // Show loading while reconnecting
-                if (view === "login") setView("loading");
+React.useEffect(() => {
+const initAuth = async () => {
+if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+try { await signInWithCustomToken(auth, __initial_auth_token); } 
+catch(e) { await signInAnonymously(auth); }
+} else { await signInAnonymously(auth); }
+};
+initAuth();
+return onAuthStateChanged(auth, (u) => { 
+if (u) { 
+setUser(u); 
+if (!roomId) setView("login"); 
+// If roomId exists, let the room listener handle the view transition
+} 
+});
+}, []);
 
-                const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        setRoomData(data);
-                        
-                        // Auto-reconnect logic
-                        if (data.status === 'playing') {
-                            setView('game');
-                        } else if (data.status === 'waiting') {
-                            setView('room');
-                        }
-                    } else { 
-                        setError("Stanza non trovata o scaduta."); 
-                        localStorage.removeItem("puzzle_roomId");
-                        setRoomId(null);
-                        setView("lobby"); 
-                    }
-                }, (err) => {
-                     console.error("Room sync error", err);
-                });
-                return () => unsub();
-            }, [roomId, user]);
+React.useEffect(() => {
+if (!roomId || !user) return;
 
-            const handleLogin = () => { 
-                if (nickname.trim()) {
-                    localStorage.setItem("puzzle_nickname", nickname);
-                    setView("lobby"); 
-                }
-            };
-            
-            const handleLeaveGame = () => {
-                localStorage.removeItem("puzzle_roomId");
-                localStorage.removeItem(`puzzle_state_${roomId}`); // Clear saved board
-                setRoomId(null);
-                setRoomData(null);
-                setView("lobby");
-            };
+// Show loading while reconnecting
+if (view === "login") setView("loading");
 
-            const createRoom = async (config) => {
-                const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                const initialData = {
-                    id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
-                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} }],
-                    rankings: [], createdAt: new Date().toISOString()
-                };
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
-                localStorage.setItem("puzzle_roomId", newRoomId);
-                setRoomId(newRoomId); 
-                setRoomData(initialData); 
-                setView("room");
-            };
+const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), (docSnap) => {
+if (docSnap.exists()) {
+const data = docSnap.data();
+setRoomData(data);
 
-            const joinRoom = async (code) => {
-                const rId = code.trim().toUpperCase();
-                try {
-                    const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId));
-                    if (!snap.exists()) { setError("Stanza non trovata!"); return; }
-                    const data = snap.data();
-                    if (data.status !== 'waiting') { setError("Partita già iniziata!"); return; }
-                    if (!data.players.find(p => p.uid === user.uid)) {
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
-                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} })
-                        });
-                    }
-                    localStorage.setItem("puzzle_roomId", rId);
-                    setRoomId(rId); 
-                    // Listener will switch view
-                } catch(e) { setError("Errore durante l'accesso."); }
-            };
+// Auto-reconnect logic
+if (data.status === 'playing') {
+setView('game');
+} else if (data.status === 'waiting') {
+setView('room');
+}
+} else { 
+setError("Stanza non trovata o scaduta."); 
+localStorage.removeItem("puzzle_roomId");
+setRoomId(null);
+setView("lobby"); 
+}
+}, (err) => {
+console.error("Room sync error", err);
+});
+return () => unsub();
+}, [roomId, user]);
 
-            const startGame = async () => {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { status: 'playing', startTime: new Date().toISOString() });
-                setView("game");
-            };
+const handleLogin = () => { 
+if (nickname.trim()) {
+localStorage.setItem("puzzle_nickname", nickname);
+setView("lobby"); 
+}
+};
 
-            if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white text-2xl font-bold animate-pulse">Caricamento...</div>;
-            if (view === "login") return <LoginScreen nickname={nickname} setNickname={setNickname} onEnter={handleLogin} />;
-            if (view === "lobby") return <LobbyScreen onCreate={createRoom} onJoin={joinRoom} error={error} />;
-            if (view === "room") return <WaitingRoom room={roomData} user={user} onStart={startGame} />;
-            if (view === "game") return <GameRoom room={roomData} user={user} nickname={nickname} roomId={roomId} appId={appId} onLeave={handleLeaveGame} />;
-            return <div>Error</div>;
-        }
+const handleLeaveGame = () => {
+localStorage.removeItem("puzzle_roomId");
+localStorage.removeItem(`puzzle_state_${roomId}`); // Clear saved board
+setRoomId(null);
+setRoomData(null);
+setView("lobby");
+};
 
-        function LoginScreen({ nickname, setNickname, onEnter }) {
-            return (
-                <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 opacity-80"></div>
-                    <div className="glass-panel p-8 rounded-2xl shadow-2xl z-10 w-full max-w-md text-center">
-                        <h1 className="text-4xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">PUZZLE BATTLE</h1>
-                        <p className="text-gray-400 mb-8">Competizione di intelletto e velocità</p>
-                        <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Nickname" className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white mb-4 focus:ring-2 focus:ring-purple-500 outline-none" maxLength={12} />
-                        <button onClick={onEnter} disabled={!nickname.trim()} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition shadow-lg">Entra</button>
-                    </div>
-                </div>
-            );
-        }
+const createRoom = async (config) => {
+const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+const initialData = {
+id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
+players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} }],
+rankings: [], createdAt: new Date().toISOString()
+};
+await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
+localStorage.setItem("puzzle_roomId", newRoomId);
+setRoomId(newRoomId); 
+setRoomData(initialData); 
+setView("room");
+};
 
-        function LobbyScreen({ onCreate, onJoin, error }) {
-            const [mode, setMode] = React.useState('menu');
-            const [selectedImage, setSelectedImage] = React.useState(IMAGES[0]);
-            const [difficulty, setDifficulty] = React.useState(DIFFICULTIES[1]);
-            const [showRef, setShowRef] = React.useState(true);
-            const [joinCode, setJoinCode] = React.useState("");
+const joinRoom = async (code) => {
+const rId = code.trim().toUpperCase();
+try {
+const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId));
+if (!snap.exists()) { setError("Stanza non trovata!"); return; }
+const data = snap.data();
+if (data.status !== 'waiting') { setError("Partita già iniziata!"); return; }
+if (!data.players.find(p => p.uid === user.uid)) {
+await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
+players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} })
+});
+}
+localStorage.setItem("puzzle_roomId", rId);
+setRoomId(rId); 
+// Listener will switch view
+} catch(e) { setError("Errore durante l'accesso."); }
+};
 
-            const handleCreate = () => onCreate({ imageId: selectedImage.id, imageUrl: selectedImage.url, difficultyIdx: DIFFICULTIES.indexOf(difficulty), showReference: showRef });
+const startGame = async () => {
+await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { status: 'playing', startTime: new Date().toISOString() });
+setView("game");
+};
 
-            return (
-                <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 overflow-y-auto">
-                    <div className="flex justify-between items-center mb-8 max-w-4xl mx-auto w-full">
-                        <h2 className="text-2xl font-bold">Lobby</h2>
-                        {mode !== 'menu' && <button onClick={() => setMode('menu')} className="text-gray-400 hover:text-white">Indietro</button>}
-                    </div>
-                    {error && <div className="max-w-md mx-auto bg-red-500/20 border border-red-500 text-red-100 p-4 rounded-xl mb-6 text-center">{error}</div>}
-                    
-                    {mode === 'menu' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mt-10">
-                            <button onClick={() => setMode('create')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
-                                <div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">🧩</div>
-                                <h3 className="text-2xl font-bold">Crea Stanza</h3>
-                            </button>
-                            <button onClick={() => setMode('join')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
-                                <div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">⚔️</div>
-                                <h3 className="text-2xl font-bold">Unisciti</h3>
-                            </button>
-                        </div>
-                    ) : mode === 'join' ? (
-                        <div className="max-w-md mx-auto glass-panel p-8 rounded-2xl text-center">
-                            <h3 className="text-xl font-bold mb-4">Inserisci Codice</h3>
-                            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} placeholder="XXXXXX" className="w-full bg-slate-800 border-2 border-slate-600 rounded-xl px-4 py-3 text-center text-3xl tracking-[0.5em] font-mono mb-6 focus:border-indigo-500 outline-none uppercase" />
-                            <button onClick={() => onJoin(joinCode)} className="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-lg">ENTRA</button>
-                        </div>
-                    ) : (
-                        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <div className="glass-panel p-6 rounded-2xl">
-                                    <h3 className="font-bold text-gray-300 mb-3">Immagine</h3>
-                                    <div className="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                        {IMAGES.map(img => (
-                                            <div key={img.id} onClick={() => setSelectedImage(img)} className={`cursor-pointer rounded-lg overflow-hidden border-2 transition h-20 relative ${selectedImage.id === img.id ? 'border-purple-500 ring-2 ring-purple-500/50' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                                                <img src={img.url} className="w-full h-full object-cover" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="glass-panel p-6 rounded-2xl">
-                                    <h3 className="font-bold text-gray-300 mb-3">Difficoltà</h3>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                        {DIFFICULTIES.map((diff, idx) => (
-                                            <button key={idx} onClick={() => setDifficulty(diff)} className={`py-2 px-3 rounded-xl font-semibold transition text-sm flex flex-col items-center ${difficulty.label === diff.label ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-gray-400 hover:bg-slate-700'}`}>
-                                                <span>{diff.label}</span>
-                                                <span className="text-[10px] opacity-60">{diff.pieces} pz</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="glass-panel p-6 rounded-2xl flex items-center justify-between">
-                                    <span className="font-bold text-gray-300">Guida visiva</span>
-                                    <button onClick={() => setShowRef(!showRef)} className={`w-14 h-8 rounded-full p-1 transition-colors ${showRef ? 'bg-green-500' : 'bg-slate-700'}`}><div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${showRef ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-6">
-                                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col items-center justify-center">
-                                    <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800">
-                                        <img src={selectedImage.url} className="w-full h-full object-cover opacity-60" />
-                                        <div className="absolute inset-0 grid border border-white/5" style={{ gridTemplateColumns: `repeat(${difficulty.cols}, 1fr)`, gridTemplateRows: `repeat(${difficulty.rows}, 1fr)` }}>
-                                            {Array.from({ length: difficulty.pieces }).map((_, i) => <div key={i} className="border border-white/5"></div>)}
-                                        </div>
-                                    </div>
-                                    <div className="mt-6 text-center">
-                                        <p className="text-purple-400 font-bold text-xl">{selectedImage.name}</p>
-                                        <p className="text-gray-400">{difficulty.label} • {difficulty.pieces} Pezzi</p>
-                                    </div>
-                                </div>
-                                <button onClick={handleCreate} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition">CREA PARTITA</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
+if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white text-2xl font-bold animate-pulse">Caricamento...</div>;
+if (view === "login") return <LoginScreen nickname={nickname} setNickname={setNickname} onEnter={handleLogin} />;
+if (view === "lobby") return <LobbyScreen onCreate={createRoom} onJoin={joinRoom} error={error} />;
+if (view === "room") return <WaitingRoom room={roomData} user={user} onStart={startGame} />;
+if (view === "game") return <GameRoom room={roomData} user={user} nickname={nickname} roomId={roomId} appId={appId} onLeave={handleLeaveGame} />;
+return <div>Error</div>;
+}
 
-        function WaitingRoom({ room, user, onStart }) {
-            if (!room) return null;
-            const isHost = room.hostId === user.uid;
-            return (
-                <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-white">
-                    <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl text-center">
-                        <h2 className="text-3xl font-bold mb-4">Sala d'Attesa</h2>
-                        <div onClick={() => { navigator.clipboard.writeText(room.id); }} className="bg-slate-800 hover:bg-slate-700 p-6 rounded-2xl inline-flex flex-col cursor-pointer transition border border-slate-700 mb-8">
-                            <span className="text-sm text-gray-400 mb-1">Codice Stanza (clicca per copiare)</span>
-                            <span className="text-5xl font-mono tracking-widest text-purple-400 font-bold">{room.id}</span>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-2xl p-6 mb-8 text-left">
-                            <h3 className="text-gray-400 font-bold mb-4">Giocatori ({room.players.length})</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {room.players.map(p => (
-                                    <div key={p.uid} className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold">{p.name.substring(0,2).toUpperCase()}</div>
-                                        <span className="font-semibold">{p.name}</span>
-                                        {p.uid === room.hostId && <span className="ml-auto text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">HOST</span>}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        {isHost ? (
-                            <button onClick={onStart} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg transform hover:scale-[1.02] transition">INIZIA ORA</button>
-                        ) : (
-                            <div className="text-purple-300 animate-pulse font-semibold">L'host sta per iniziare...</div>
-                        )}
-                    </div>
-                </div>
-            );
-        }
+function LoginScreen({ nickname, setNickname, onEnter }) {
+return (
+<div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 relative overflow-hidden">
+<div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 opacity-80"></div>
+<div className="glass-panel p-8 rounded-2xl shadow-2xl z-10 w-full max-w-md text-center">
+<h1 className="text-4xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">PUZZLE BATTLE</h1>
+<p className="text-gray-400 mb-8">Competizione di intelletto e velocità</p>
+<input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Nickname" className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white mb-4 focus:ring-2 focus:ring-purple-500 outline-none" maxLength={12} />
+<button onClick={onEnter} disabled={!nickname.trim()} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition shadow-lg">Entra</button>
+</div>
+</div>
+);
+}
 
-        const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
-            if (!shape) return null;
-            const unitW = 100; const unitH = 100;
-            const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
-            const totalW = unitW * cols; const totalH = unitH * rows;
-            const imgX = -col * unitW; const imgY = -row * unitH;
-            const id = `p-${row}-${col}-${isPlaced ? 'pl' : 'bk'}`;
-            return (
-                <svg viewBox={`-35 -35 ${unitW+70} ${unitH+70}`} className="w-full h-full overflow-visible pointer-events-none">
-                    <defs><clipPath id={`clip-${id}`}><path d={pathData} /></clipPath></defs>
-                    <g clipPath={`url(#clip-${id})`}>
-                        <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
-                        {!isPlaced && <path d={pathData} fill="white" fillOpacity="0.1" />}
-                    </g>
-                    {!isPlaced && <path d={pathData} fill="none" stroke="#222" strokeWidth="1" />}
-                </svg>
-            );
-        };
+function LobbyScreen({ onCreate, onJoin, error }) {
+const [mode, setMode] = React.useState('menu');
+const [selectedImage, setSelectedImage] = React.useState(IMAGES[0]);
+const [difficulty, setDifficulty] = React.useState(DIFFICULTIES[1]);
+const [showRef, setShowRef] = React.useState(true);
+const [joinCode, setJoinCode] = React.useState("");
 
-        function GameRoom({ room, user, nickname, roomId, appId, onLeave }) {
-            if (!room) return null;
-            const config = room.config;
-            const diff = DIFFICULTIES[config.difficultyIdx];
+const handleCreate = () => onCreate({ imageId: selectedImage.id, imageUrl: selectedImage.url, difficultyIdx: DIFFICULTIES.indexOf(difficulty), showReference: showRef });
 
-            const [bankPieces, setBankPieces] = React.useState([]); 
-            const [boardState, setBoardState] = React.useState({}); 
-            const [timer, setTimer] = React.useState(0);
-            const [showHelper, setShowHelper] = React.useState(false);
-            
-            // Cooldowns
-            const [helperCooldown, setHelperCooldown] = React.useState(0);
-            const [magicCooldown, setMagicCooldown] = React.useState(0);
-            const [iceCooldown, setIceCooldown] = React.useState(0);
-            const [fogCooldown, setFogCooldown] = React.useState(0);
+return (
+<div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 overflow-y-auto">
+<div className="flex justify-between items-center mb-8 max-w-4xl mx-auto w-full">
+<h2 className="text-2xl font-bold">Lobby</h2>
+{mode !== 'menu' && <button onClick={() => setMode('menu')} className="text-gray-400 hover:text-white">Indietro</button>}
+</div>
+{error && <div className="max-w-md mx-auto bg-red-500/20 border border-red-500 text-red-100 p-4 rounded-xl mb-6 text-center">{error}</div>}
 
-            // Drag State
-            const [dragState, setDragState] = React.useState(null);
-            const [hoveredSlot, setHoveredSlot] = React.useState(null);
-            
-            // Zoom & Pan State
-            const [transform, setTransform] = React.useState({ x: 0, y: 0, scale: 1 });
-            const [pinchDist, setPinchDist] = React.useState(null);
-            const [isPanning, setIsPanning] = React.useState(false);
+{mode === 'menu' ? (
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mt-10">
+<button onClick={() => setMode('create')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
+<div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">🧩</div>
+<h3 className="text-2xl font-bold">Crea Stanza</h3>
+</button>
+<button onClick={() => setMode('join')} className="glass-panel p-10 rounded-2xl hover:bg-white/5 transition text-center group">
+<div className="text-6xl mb-4 group-hover:scale-110 transition duration-300">⚔️</div>
+<h3 className="text-2xl font-bold">Unisciti</h3>
+</button>
+</div>
+) : mode === 'join' ? (
+<div className="max-w-md mx-auto glass-panel p-8 rounded-2xl text-center">
+<h3 className="text-xl font-bold mb-4">Inserisci Codice</h3>
+<input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} placeholder="XXXXXX" className="w-full bg-slate-800 border-2 border-slate-600 rounded-xl px-4 py-3 text-center text-3xl tracking-[0.5em] font-mono mb-6 focus:border-indigo-500 outline-none uppercase" />
+<button onClick={() => onJoin(joinCode)} className="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-bold text-lg">ENTRA</button>
+</div>
+) : (
+<div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+<div className="space-y-6">
+<div className="glass-panel p-6 rounded-2xl">
+<h3 className="font-bold text-gray-300 mb-3">Immagine</h3>
+<div className="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+{IMAGES.map(img => (
+<div key={img.id} onClick={() => setSelectedImage(img)} className={`cursor-pointer rounded-lg overflow-hidden border-2 transition h-20 relative ${selectedImage.id === img.id ? 'border-purple-500 ring-2 ring-purple-500/50' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+<img src={img.url} className="w-full h-full object-cover" />
+</div>
+))}
+</div>
+</div>
+<div className="glass-panel p-6 rounded-2xl">
+<h3 className="font-bold text-gray-300 mb-3">Difficoltà</h3>
+<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+{DIFFICULTIES.map((diff, idx) => (
+<button key={idx} onClick={() => setDifficulty(diff)} className={`py-2 px-3 rounded-xl font-semibold transition text-sm flex flex-col items-center ${difficulty.label === diff.label ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-gray-400 hover:bg-slate-700'}`}>
+<span>{diff.label}</span>
+<span className="text-[10px] opacity-60">{diff.pieces} pz</span>
+</button>
+))}
+</div>
+</div>
+<div className="glass-panel p-6 rounded-2xl flex items-center justify-between">
+<span className="font-bold text-gray-300">Guida visiva</span>
+<button onClick={() => setShowRef(!showRef)} className={`w-14 h-8 rounded-full p-1 transition-colors ${showRef ? 'bg-green-500' : 'bg-slate-700'}`}><div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${showRef ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+</div>
+</div>
+<div className="flex flex-col gap-6">
+<div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col items-center justify-center">
+<div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800">
+<img src={selectedImage.url} className="w-full h-full object-cover opacity-60" />
+<div className="absolute inset-0 grid border border-white/5" style={{ gridTemplateColumns: `repeat(${difficulty.cols}, 1fr)`, gridTemplateRows: `repeat(${difficulty.rows}, 1fr)` }}>
+{Array.from({ length: difficulty.pieces }).map((_, i) => <div key={i} className="border border-white/5"></div>)}
+</div>
+</div>
+<div className="mt-6 text-center">
+<p className="text-purple-400 font-bold text-xl">{selectedImage.name}</p>
+<p className="text-gray-400">{difficulty.label} • {difficulty.pieces} Pezzi</p>
+</div>
+</div>
+<button onClick={handleCreate} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition">CREA PARTITA</button>
+</div>
+</div>
+)}
+</div>
+);
+}
 
-            // Attack State
-            const [selectedAttack, setSelectedAttack] = React.useState(null); // 'ice' | 'fog' | null
+function WaitingRoom({ room, user, onStart }) {
+if (!room) return null;
+const isHost = room.hostId === user.uid;
+return (
+<div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-white">
+<div className="glass-panel max-w-2xl w-full p-8 rounded-3xl text-center">
+<h2 className="text-3xl font-bold mb-4">Sala d'Attesa</h2>
+<div onClick={() => { navigator.clipboard.writeText(room.id); }} className="bg-slate-800 hover:bg-slate-700 p-6 rounded-2xl inline-flex flex-col cursor-pointer transition border border-slate-700 mb-8">
+<span className="text-sm text-gray-400 mb-1">Codice Stanza (clicca per copiare)</span>
+<span className="text-5xl font-mono tracking-widest text-purple-400 font-bold">{room.id}</span>
+</div>
+<div className="bg-slate-800/50 rounded-2xl p-6 mb-8 text-left">
+<h3 className="text-gray-400 font-bold mb-4">Giocatori ({room.players.length})</h3>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+{room.players.map(p => (
+<div key={p.uid} className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
+<div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold">{p.name.substring(0,2).toUpperCase()}</div>
+<span className="font-semibold">{p.name}</span>
+{p.uid === room.hostId && <span className="ml-auto text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">HOST</span>}
+</div>
+))}
+</div>
+</div>
+{isHost ? (
+<button onClick={onStart} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg transform hover:scale-[1.02] transition">INIZIA ORA</button>
+) : (
+<div className="text-purple-300 animate-pulse font-semibold">L'host sta per iniziare...</div>
+)}
+</div>
+</div>
+);
+}
 
-            const allPiecesRef = React.useRef({});
-            const myFinishRef = React.useRef(false);
+const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
+if (!shape) return null;
+const unitW = 100; const unitH = 100;
+const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
+const totalW = unitW * cols; const totalH = unitH * rows;
+const imgX = -col * unitW; const imgY = -row * unitH;
+const id = `p-${row}-${col}-${isPlaced ? 'pl' : 'bk'}`;
+return (
+<svg viewBox={`-35 -35 ${unitW+70} ${unitH+70}`} className="w-full h-full overflow-visible pointer-events-none">
+<defs><clipPath id={`clip-${id}`}><path d={pathData} /></clipPath></defs>
+<g clipPath={`url(#clip-${id})`}>
+<image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
+{!isPlaced && <path d={pathData} fill="white" fillOpacity="0.1" />}
+</g>
+{!isPlaced && <path d={pathData} fill="none" stroke="#222" strokeWidth="1" />}
+</svg>
+);
+};
 
-            // Active Effects on ME
-            const myPlayer = room.players.find(p => p.uid === user.uid);
-            const frozenUntil = myPlayer?.effects?.frozenUntil || 0;
-            const blindedUntil = myPlayer?.effects?.blindedUntil || 0;
-            const isFrozen = Date.now() < frozenUntil;
-            const isBlinded = Date.now() < blindedUntil;
+function GameRoom({ room, user, nickname, roomId, appId, onLeave }) {
+if (!room) return null;
+const config = room.config;
+const diff = DIFFICULTIES[config.difficultyIdx];
 
-            React.useEffect(() => {
-                const initialBank = []; const allP = {}; const allShapes = {};
-                for(let r=0; r<diff.rows; r++) {
-                    for(let c=0; c<diff.cols; c++) {
-                        let top=0, bottom=0, left=0, right=0;
-                        if (r!==0) top = -1 * allShapes[`${r-1}-${c}`].bottom;
-                        if (c!==0) left = -1 * allShapes[`${r}-${c-1}`].right;
-                        if (c!==diff.cols-1) right = Math.random() > 0.5 ? 1 : -1;
-                        if (r!==diff.rows-1) bottom = Math.random() > 0.5 ? 1 : -1;
-                        const shape = { top, right, bottom, left };
-                        allShapes[`${r}-${c}`] = shape;
-                        const id = r*diff.cols + c;
-                        allP[id] = { id, correctIndex: id, row: r, col: c, shape };
-                        initialBank.push(id);
-                    }
-                }
-                allPiecesRef.current = allP;
+const [bankPieces, setBankPieces] = React.useState([]); 
+const [boardState, setBoardState] = React.useState({}); 
+const [timer, setTimer] = React.useState(0);
+const [showHelper, setShowHelper] = React.useState(false);
 
-                // --- RESTORE STATE LOGIC ---
-                const savedState = localStorage.getItem(`puzzle_state_${roomId}`);
-                if (savedState) {
-                    try {
-                        const parsed = JSON.parse(savedState);
-                        const restoredBoard = {};
-                        // Re-attach piece objects from allP using saved IDs
-                        if (parsed.boardState) {
-                            Object.keys(parsed.boardState).forEach(key => {
-                                const pid = parsed.boardState[key].id;
-                                if(allP[pid]) restoredBoard[key] = allP[pid];
-                            });
-                        }
-                        setBoardState(restoredBoard);
-                        
-                        // Calculate bank pieces by removing board pieces from all pieces
-                        const boardIds = Object.values(restoredBoard).map(p => p.id);
-                        const newBank = initialBank.filter(id => !boardIds.includes(id));
-                        setBankPieces(newBank.sort(() => Math.random() - 0.5));
-                    } catch(e) {
-                        console.error("State restore error", e);
-                        setBankPieces(initialBank.sort(() => Math.random() - 0.5));
-                    }
-                } else {
-                    setBankPieces(initialBank.sort(() => Math.random() - 0.5));
-                }
-                
-                // Timer sync with server start time
-                if (room.startTime) {
-                    const start = new Date(room.startTime).getTime();
-                    const now = new Date().getTime();
-                    setTimer(Math.floor((now - start) / 1000));
-                }
+// Cooldowns
+const [helperCooldown, setHelperCooldown] = React.useState(0);
+const [magicCooldown, setMagicCooldown] = React.useState(0);
+const [iceCooldown, setIceCooldown] = React.useState(0);
+const [fogCooldown, setFogCooldown] = React.useState(0);
 
-                const interval = setInterval(() => { if (!myFinishRef.current) setTimer(t => t + 1); }, 1000);
-                return () => clearInterval(interval);
-            }, []);
+// Drag State
+const [dragState, setDragState] = React.useState(null);
+const [hoveredSlot, setHoveredSlot] = React.useState(null);
 
-            // Save state on change
-            React.useEffect(() => {
-                if (Object.keys(boardState).length >= 0) { // Save even if empty to clear
-                     localStorage.setItem(`puzzle_state_${roomId}`, JSON.stringify({ boardState }));
-                }
-            }, [boardState, roomId]);
+// Zoom & Pan State
+const [transform, setTransform] = React.useState({ x: 0, y: 0, scale: 1 });
+const [pinchDist, setPinchDist] = React.useState(null);
+const [isPanning, setIsPanning] = React.useState(false);
 
-            React.useEffect(() => {
-                const t = setInterval(() => {
-                    if(helperCooldown > 0) setHelperCooldown(c => c - 1);
-                    if(magicCooldown > 0) setMagicCooldown(c => c - 1);
-                    if(iceCooldown > 0) setIceCooldown(c => c - 1);
-                    if(fogCooldown > 0) setFogCooldown(c => c - 1);
-                }, 1000);
-                return () => clearInterval(t);
-            }, [helperCooldown, magicCooldown, iceCooldown, fogCooldown]);
-            
-            // Victory & Progress Logic
-            React.useEffect(() => {
-                if (Object.keys(allPiecesRef.current).length === 0) return;
-                let correctCount = 0; let isComplete = true;
-                for(let i=0; i<diff.pieces; i++) {
-                    if (boardState[i]?.id === i) correctCount++; else isComplete = false;
-                }
-                const updateRemote = async () => {
-                    const progress = Math.round((correctCount / diff.pieces) * 100);
-                    const myPlayerIndex = room.players.findIndex(p => p.uid === user.uid);
-                    if (myPlayerIndex === -1) return;
-                    if (room.players[myPlayerIndex].progress !== progress) {
-                        const updatedPlayers = [...room.players];
-                        updatedPlayers[myPlayerIndex] = { ...updatedPlayers[myPlayerIndex], progress };
-                        let rankingsUpdate = {};
-                        if (isComplete && !room.players[myPlayerIndex].finished) {
-                            myFinishRef.current = true;
-                            updatedPlayers[myPlayerIndex].finished = true;
-                            updatedPlayers[myPlayerIndex].finishTime = timer;
-                            rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: timer }) };
-                        }
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers, ...rankingsUpdate });
-                    }
-                };
-                updateRemote();
-            }, [boardState]);
+// Attack State
+const [selectedAttack, setSelectedAttack] = React.useState(null); // 'ice' | 'fog' | null
 
-            const playDropSound = () => {
-                const audio = new Audio('https://uploaded-confirm-tap-394001-2e6ddb51-7893-4a0b-90f7-a548c267b2d2.s3.us-east-1.amazonaws.com/confirm-tap-394001.mp3');
-                audio.volume = 0.5;
-                audio.play().catch(e => console.error("Audio play failed:", e));
-            };
+const allPiecesRef = React.useRef({});
+const myFinishRef = React.useRef(false);
 
-            const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
-                 if (isFrozen) return; // Cannot drop if frozen
-                 const pieceObj = allPiecesRef.current[pieceId];
-                 if (!pieceObj) return;
-                 if (targetType === 'slot') {
-                     if (boardState[targetIndex]) return; 
-                     
-                     playDropSound();
+// Active Effects on ME
+const myPlayer = room.players.find(p => p.uid === user.uid);
+const frozenUntil = myPlayer?.effects?.frozenUntil || 0;
+const blindedUntil = myPlayer?.effects?.blindedUntil || 0;
+const isFrozen = Date.now() < frozenUntil;
+const isBlinded = Date.now() < blindedUntil;
 
-                     setBoardState(prev => {
-                         const newState = { ...prev, [targetIndex]: pieceObj };
-                         if (source === 'board') delete newState[srcSlot];
-                         return newState;
-                     });
-                     if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
-                 } else if (targetType === 'bank') {
-                     if (source === 'bank') return;
-                     setBankPieces(prev => [...prev, pieceId]);
-                     setBoardState(prev => { const newState = { ...prev }; delete newState[srcSlot]; return newState; });
-                 }
-                 setHoveredSlot(null);
-            };
+React.useEffect(() => {
+const initialBank = []; const allP = {}; const allShapes = {};
+for(let r=0; r<diff.rows; r++) {
+for(let c=0; c<diff.cols; c++) {
+let top=0, bottom=0, left=0, right=0;
+if (r!==0) top = -1 * allShapes[`${r-1}-${c}`].bottom;
+if (c!==0) left = -1 * allShapes[`${r}-${c-1}`].right;
+if (c!==diff.cols-1) right = Math.random() > 0.5 ? 1 : -1;
+if (r!==diff.rows-1) bottom = Math.random() > 0.5 ? 1 : -1;
+const shape = { top, right, bottom, left };
+allShapes[`${r}-${c}`] = shape;
+const id = r*diff.cols + c;
+allP[id] = { id, correctIndex: id, row: r, col: c, shape };
+initialBank.push(id);
+}
+}
+allPiecesRef.current = allP;
 
-            const toggleAttackMode = (type) => {
-                if (selectedAttack === type) setSelectedAttack(null);
-                else setSelectedAttack(type);
-            };
+// --- RESTORE STATE LOGIC ---
+const savedState = localStorage.getItem(`puzzle_state_${roomId}`);
+if (savedState) {
+try {
+const parsed = JSON.parse(savedState);
+const restoredBoard = {};
+// Re-attach piece objects from allP using saved IDs
+if (parsed.boardState) {
+Object.keys(parsed.boardState).forEach(key => {
+const pid = parsed.boardState[key].id;
+if(allP[pid]) restoredBoard[key] = allP[pid];
+});
+}
+setBoardState(restoredBoard);
 
-            const launchAttack = async (targetUid) => {
-                if (!selectedAttack) return;
-                
-                // Determine cooldown based on type
-                if (selectedAttack === 'ice') setIceCooldown(45);
-                if (selectedAttack === 'fog') setFogCooldown(60);
+// Calculate bank pieces by removing board pieces from all pieces
+const boardIds = Object.values(restoredBoard).map(p => p.id);
+const newBank = initialBank.filter(id => !boardIds.includes(id));
+setBankPieces(newBank.sort(() => Math.random() - 0.5));
+} catch(e) {
+console.error("State restore error", e);
+setBankPieces(initialBank.sort(() => Math.random() - 0.5));
+}
+} else {
+setBankPieces(initialBank.sort(() => Math.random() - 0.5));
+}
 
-                const type = selectedAttack;
-                setSelectedAttack(null); // Reset mode immediately after firing
+// Timer sync with server start time
+if (room.startTime) {
+const start = new Date(room.startTime).getTime();
+const now = new Date().getTime();
+setTimer(Math.floor((now - start) / 1000));
+}
 
-                // Update Firebase target
-                const updatedPlayers = room.players.map(p => {
-                    if (p.uid === targetUid) {
-                        let newEffects = { ...p.effects };
-                        const now = Date.now();
-                        if (type === 'ice') newEffects.frozenUntil = now + 5000; // 5s
-                        if (type === 'fog') newEffects.blindedUntil = now + 15000; // 15s
-                        return { ...p, effects: newEffects };
-                    }
-                    return p;
-                });
-                
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers });
-            };
+const interval = setInterval(() => { if (!myFinishRef.current) setTimer(t => t + 1); }, 1000);
+return () => clearInterval(interval);
+}, []);
 
-            const sortedPlayers = [...room.players].sort((a, b) => {
-                if (a.finished && b.finished) return a.finishTime - b.finishTime;
-                if (a.finished) return -1; if (b.finished) return 1;
-                return b.progress - a.progress;
-            });
+// Save state on change
+React.useEffect(() => {
+if (Object.keys(boardState).length >= 0) { // Save even if empty to clear
+localStorage.setItem(`puzzle_state_${roomId}`, JSON.stringify({ boardState }));
+}
+}, [boardState, roomId]);
 
-            const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+React.useEffect(() => {
+const t = setInterval(() => {
+if(helperCooldown > 0) setHelperCooldown(c => c - 1);
+if(magicCooldown > 0) setMagicCooldown(c => c - 1);
+if(iceCooldown > 0) setIceCooldown(c => c - 1);
+if(fogCooldown > 0) setFogCooldown(c => c - 1);
+}, 1000);
+return () => clearInterval(t);
+}, [helperCooldown, magicCooldown, iceCooldown, fogCooldown]);
 
-            // Zoom Handlers
-            const handleWheel = (e) => {
-                if(e.ctrlKey) e.preventDefault(); 
-                const scaleFactor = 0.1;
-                const delta = -Math.sign(e.deltaY) * scaleFactor;
-                setTransform(prev => {
-                    const newScale = Math.max(0.5, Math.min(prev.scale + delta, 3));
-                    return { ...prev, scale: newScale };
-                });
-            };
+// Victory & Progress Logic
+React.useEffect(() => {
+if (Object.keys(allPiecesRef.current).length === 0) return;
+let correctCount = 0; let isComplete = true;
+for(let i=0; i<diff.pieces; i++) {
+if (boardState[i]?.id === i) correctCount++; else isComplete = false;
+}
+const updateRemote = async () => {
+const progress = Math.round((correctCount / diff.pieces) * 100);
+const myPlayerIndex = room.players.findIndex(p => p.uid === user.uid);
+if (myPlayerIndex === -1) return;
+if (room.players[myPlayerIndex].progress !== progress) {
+const updatedPlayers = [...room.players];
+updatedPlayers[myPlayerIndex] = { ...updatedPlayers[myPlayerIndex], progress };
+let rankingsUpdate = {};
+if (isComplete && !room.players[myPlayerIndex].finished) {
+myFinishRef.current = true;
+updatedPlayers[myPlayerIndex].finished = true;
+updatedPlayers[myPlayerIndex].finishTime = timer;
+rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: timer }) };
+}
+await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers, ...rankingsUpdate });
+}
+};
+updateRemote();
+}, [boardState]);
 
-            const handleBoardTouchStart = (e) => {
-                if (e.touches.length === 2) {
-                    setIsPanning(true);
-                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    setPinchDist(d);
-                }
-            };
-            
-            const handleBoardTouchMove = (e) => {
-                if (e.touches.length === 2 && isPanning) {
-                    e.preventDefault();
-                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if (pinchDist) {
-                        const delta = d - pinchDist;
-                        setTransform(prev => {
-                            const newScale = Math.max(0.5, Math.min(prev.scale + delta * 0.005, 3));
-                            return { ...prev, scale: newScale };
-                        });
-                    }
-                    setPinchDist(d);
-                }
-            };
-            
-            const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
+const playDropSound = () => {
+const audio = new Audio('https://uploaded-confirm-tap-394001-2e6ddb51-7893-4a0b-90f7-a548c267b2d2.s3.us-east-1.amazonaws.com/confirm-tap-394001.mp3');
+audio.volume = 0.5;
+audio.play().catch(e => console.error("Audio play failed:", e));
+};
 
-            // Dedicated Touch Start for pieces (fixes hold delay)
-            const handlePieceTouchStart = (e, pieceId, source, slotIndex = null) => {
-                 e.preventDefault(); // Stop instant scroll/context
-                 e.stopPropagation(); // Stop board pan
-                 const touch = e.touches[0];
-                 setDragState({
-                    pieceId,
-                    source,
-                    srcSlot: slotIndex,
-                    x: touch.clientX,
-                    y: touch.clientY
-                 });
-            };
+const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
+if (isFrozen) return; // Cannot drop if frozen
+const pieceObj = allPiecesRef.current[pieceId];
+if (!pieceObj) return;
+if (targetType === 'slot') {
+if (boardState[targetIndex]) return; 
 
-            // Robust Drop Handler for Touch
-            const handleTouchEndGlobal = (e) => {
-                setIsPanning(false);
-                if (!dragState) return;
+playDropSound();
 
-                // Stop propagation to prevent ghost clicks
-                if(e.cancelable) e.preventDefault();
+setBoardState(prev => {
+const newState = { ...prev, [targetIndex]: pieceObj };
+if (source === 'board') delete newState[srcSlot];
+return newState;
+});
+if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
+} else if (targetType === 'bank') {
+if (source === 'bank') return;
+setBankPieces(prev => [...prev, pieceId]);
+setBoardState(prev => { const newState = { ...prev }; delete newState[srcSlot]; return newState; });
+}
+setHoveredSlot(null);
+};
 
-                const t = e.changedTouches[0];
-                const target = document.elementFromPoint(t.clientX, t.clientY);
-                
-                let found = false;
-                let current = target;
-                
-                // Traverse up to find a valid drop target
-                while(current) {
-                    if (current.dataset?.slotIndex !== undefined) {
-                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', parseInt(current.dataset.slotIndex));
-                        found = true; 
-                        break;
-                    }
-                    if (current.id === 'piece-bank') {
-                        executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
-                        found = true; 
-                        break;
-                    }
-                    current = current.parentElement;
-                }
-                setDragState(null); 
-                setHoveredSlot(null);
-            };
+const toggleAttackMode = (type) => {
+if (selectedAttack === type) setSelectedAttack(null);
+else setSelectedAttack(type);
+};
 
-            return (
-                <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
-                     onTouchMove={(e) => {
-                        if (!dragState) return; 
-                        // e.preventDefault(); // Sometimes prevents scroll too aggressively on some devices
-                        const t = e.touches[0];
-                        setDragState(prev => ({ ...prev, x: t.clientX, y: t.clientY }));
-                        
-                        const target = document.elementFromPoint(t.clientX, t.clientY);
-                        let current = target;
-                        let foundSlot = null;
-                         while(current) {
-                            if (current.dataset?.slotIndex !== undefined) {
-                                foundSlot = parseInt(current.dataset.slotIndex);
-                                break;
-                            }
-                            current = current.parentElement;
-                        }
-                        if (foundSlot !== null) setHoveredSlot(foundSlot);
-                        else setHoveredSlot(null);
-                     }}
-                     onTouchEnd={handleTouchEndGlobal}
-                >
+const launchAttack = async (targetUid) => {
+if (!selectedAttack) return;
 
-                    {/* Attack Overlays */}
-                    {isFrozen && <div className="effect-ice">CONGELATO!</div>}
-                    
-                    {dragState && (
-                        <div style={{ position: 'fixed', left: dragState.x, top: dragState.y, width: '70px', height: '70px', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 9999 }}>
-                            <PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
-                        </div>
-                    )}
+// Determine cooldown based on type
+if (selectedAttack === 'ice') setIceCooldown(45);
+if (selectedAttack === 'fog') setFogCooldown(60);
 
-                    {showHelper && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4" onClick={() => setShowHelper(false)}>
-                            <img src={config.imageUrl} className="max-w-full max-h-full rounded-lg shadow-2xl" />
-                        </div>
-                    )}
+const type = selectedAttack;
+setSelectedAttack(null); // Reset mode immediately after firing
 
-                    {/* Sidebar */}
-                    <div className="w-full md:w-80 bg-slate-800 flex flex-col border-b md:border-r border-slate-700 z-20 shadow-2xl relative flex-shrink-0 max-h-[40vh] md:max-h-full md:h-full">
-                        <div className="p-3 border-b border-slate-700 space-y-2">
-                             <div className="flex justify-between items-center">
-                                 <div>
-                                    <span className="text-xs text-gray-400 uppercase font-bold tracking-wider block">Tempo</span>
-                                    <span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
-                                 </div>
-                                 <div className="flex gap-2">
-                                     <button onClick={resetZoom} className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">Reset View</button>
-                                     <button onClick={onLeave} className="bg-red-600/50 hover:bg-red-600 text-xs px-2 py-1 rounded text-white font-bold">Abbandona</button>
-                                 </div>
-                             </div>
-                            
-                            <div className="grid grid-cols-2 gap-2">
-                                <button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(15); }, 5000); }}} disabled={helperCooldown > 0} className={`p-2 rounded-lg font-bold text-xs transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 text-white'}`}>👁 {helperCooldown > 0 ? helperCooldown : 'Img'}</button>
-                                <button onClick={() => { if(magicCooldown<=0 && bankPieces.length>0){ 
-                                    const id = bankPieces[Math.floor(Math.random()*bankPieces.length)];
-                                    executeDrop(id, 'bank', null, 'slot', id);
-                                    setMagicCooldown(120);
-                                }}} disabled={magicCooldown > 0 || bankPieces.length===0} className={`p-2 rounded-lg font-bold text-xs transition ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
-                            </div>
+// Update Firebase target
+const updatedPlayers = room.players.map(p => {
+if (p.uid === targetUid) {
+let newEffects = { ...p.effects };
+const now = Date.now();
+if (type === 'ice') newEffects.frozenUntil = now + 5000; // 5s
+if (type === 'fog') newEffects.blindedUntil = now + 15000; // 15s
+return { ...p, effects: newEffects };
+}
+return p;
+});
 
-                             {/* Offensive Powers */}
-                             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
-                                <button 
-                                    onClick={() => toggleAttackMode('ice')} 
-                                    disabled={iceCooldown > 0} 
-                                    className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
-                                        selectedAttack === 'ice' ? 'bg-cyan-500 ring-2 ring-white animate-pulse' : 
-                                        iceCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-cyan-600 text-white'
-                                    }`}>
-                                    <span>{selectedAttack === 'ice' ? 'Scegli...' : '❄️ Ghiaccio'}</span>
-                                    {iceCooldown > 0 && <span>{iceCooldown}s</span>}
-                                </button>
-                                <button 
-                                    onClick={() => toggleAttackMode('fog')} 
-                                    disabled={fogCooldown > 0} 
-                                    className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
-                                        selectedAttack === 'fog' ? 'bg-gray-400 ring-2 ring-white animate-pulse text-black' : 
-                                        fogCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-gray-500 text-white'
-                                    }`}>
-                                    <span>{selectedAttack === 'fog' ? 'Scegli...' : '☁️ Nebbia'}</span>
-                                    {fogCooldown > 0 && <span>{fogCooldown}s</span>}
-                                </button>
-                            </div>
-                            {selectedAttack && <div className="text-center text-xs text-yellow-300 font-bold animate-bounce">Clicca un avversario!</div>}
-                        </div>
+await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers });
+};
 
-                        {/* Leaderboard */}
-                        <div className="p-2 space-y-1 overflow-y-auto max-h-20 md:max-h-40 border-b border-slate-700 bg-slate-900/40">
-                             {sortedPlayers.map((p, idx) => {
-                                 const isTargetable = selectedAttack && p.uid !== user.uid;
-                                 return (
-                                    <div 
-                                        key={p.uid} 
-                                        onClick={() => { if(isTargetable) launchAttack(p.uid); }}
-                                        className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 rounded transition
-                                            ${p.uid === user.uid ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30' : 'bg-slate-800/40'}
-                                            ${isTargetable ? 'cursor-pointer hover:bg-red-500/30 ring-2 ring-red-500 scale-[1.02]' : ''}
-                                        `}>
-                                        <div className="flex items-center gap-1 overflow-hidden">
-                                            {isTargetable && <span className="text-lg animate-pulse">🎯</span>}
-                                            <span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
-                                        </div>
-                                        {p.finished ? 
-                                            <span className="text-yellow-400 font-mono text-[10px]">🏆 {formatTime(p.finishTime)}</span> 
-                                            : 
-                                            <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden ml-2">
-                                                <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
-                                            </div>
-                                        }
-                                    </div>
-                                )
-                             })}
-                        </div>
-                        
-                        {/* Piece Bank */}
-                        <div id="piece-bank" className="flex-1 overflow-y-auto bg-slate-900/60 p-2 custom-scrollbar"
-                             onDragOver={(e) => e.preventDefault()}
-                             onDrop={(e) => {
-                                const id = parseInt(e.dataTransfer.getData("pieceId"));
-                                const src = e.dataTransfer.getData("source");
-                                if (src === 'board') executeDrop(id, 'board', parseInt(e.dataTransfer.getData("srcSlot")), 'bank');
-                             }}>
-                             <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
-                                {bankPieces.map((id) => (
-                                    <div key={id} draggable={!isFrozen} 
-                                         onContextMenu={(e) => e.preventDefault()}
-                                         style={{ touchAction: 'none' }}
-                                         onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
-                                         onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, id, 'bank'); }} 
-                                         className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
-                                        <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+const sortedPlayers = [...room.players].sort((a, b) => {
+if (a.finished && b.finished) return a.finishTime - b.finishTime;
+if (a.finished) return -1; if (b.finished) return 1;
+return b.progress - a.progress;
+});
 
-                    {/* Main Board */}
-                    <div className="flex-1 bg-slate-950 flex items-center justify-center p-0 overflow-hidden relative"
-                         onWheel={handleWheel}
-                         onTouchStart={handleBoardTouchStart}
-                         onTouchMove={handleBoardTouchMove}
-                         onDoubleClick={resetZoom}
-                    >
-                        <div className={`relative shadow-2xl bg-slate-900/30 border border-white/5 transition-transform duration-100 ease-out origin-center ${isBlinded ? 'effect-fog' : ''}`}
-                             style={{ 
-                                 width: '100%', maxWidth: '95vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '92%',
-                                 transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`
-                             }}>
-                            <div className="w-full h-full relative grid" style={{ gridTemplateColumns: `repeat(${diff.cols}, 1fr)`, gridTemplateRows: `repeat(${diff.rows}, 1fr)` }}>
-                                {Array.from({ length: diff.pieces }).map((_, index) => {
-                                    const piece = boardState[index];
-                                    const isHovered = hoveredSlot === index;
-                                    return (
-                                        <div key={index} data-slot-index={index} 
-                                             className={`relative w-full h-full transition-colors duration-150 ${isHovered ? 'slot-highlight' : ''}`}
-                                             onDragOver={(e) => { if(!piece) { e.preventDefault(); setHoveredSlot(index); } }}
-                                             onDragLeave={() => setHoveredSlot(null)}
-                                             onDrop={(e) => {
-                                                 const id = parseInt(e.dataTransfer.getData("pieceId"));
-                                                 const src = e.dataTransfer.getData("source");
-                                                 executeDrop(id, src, src === 'board' ? parseInt(e.dataTransfer.getData("srcSlot")) : null, 'slot', index);
-                                             }}>
-                                            {!piece && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
-                                            {piece && (
-                                                <div 
-                                                    className="absolute animate-pop z-10" 
-                                                    style={{ width: '170%', height: '170%', top: '-35%', left: '-35%', touchAction: 'none' }}
-                                                    draggable={!isFrozen}
-                                                    onContextMenu={(e) => e.preventDefault()}
-                                                    onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
-                                                    onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, piece.id, 'board', index); }}
-                                                >
-                                                     <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
+const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+// Zoom Handlers
+const handleWheel = (e) => {
+if(e.ctrlKey) e.preventDefault(); 
+const scaleFactor = 0.1;
+const delta = -Math.sign(e.deltaY) * scaleFactor;
+setTransform(prev => {
+const newScale = Math.max(0.5, Math.min(prev.scale + delta, 3));
+return { ...prev, scale: newScale };
+});
+};
+
+const handleBoardTouchStart = (e) => {
+if (e.touches.length === 2) {
+setIsPanning(true);
+const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+setPinchDist(d);
+}
+};
+
+const handleBoardTouchMove = (e) => {
+if (e.touches.length === 2 && isPanning) {
+e.preventDefault();
+const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+if (pinchDist) {
+const delta = d - pinchDist;
+setTransform(prev => {
+const newScale = Math.max(0.5, Math.min(prev.scale + delta * 0.005, 3));
+return { ...prev, scale: newScale };
+});
+}
+setPinchDist(d);
+}
+};
+
+const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
+
+// Dedicated Touch Start for pieces (fixes hold delay)
+const handlePieceTouchStart = (e, pieceId, source, slotIndex = null) => {
+e.preventDefault(); // Stop instant scroll/context
+e.stopPropagation(); // Stop board pan
+const touch = e.touches[0];
+setDragState({
+pieceId,
+source,
+srcSlot: slotIndex,
+x: touch.clientX,
+y: touch.clientY
+});
+};
+
+// Robust Drop Handler for Touch
+const handleTouchEndGlobal = (e) => {
+setIsPanning(false);
+if (!dragState) return;
+
+// Stop propagation to prevent ghost clicks
+if(e.cancelable) e.preventDefault();
+
+const t = e.changedTouches[0];
+const target = document.elementFromPoint(t.clientX, t.clientY);
+
+let found = false;
+let current = target;
+
+// Traverse up to find a valid drop target
+while(current) {
+if (current.dataset?.slotIndex !== undefined) {
+executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', parseInt(current.dataset.slotIndex));
+found = true; 
+break;
+}
+if (current.id === 'piece-bank') {
+executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
+found = true; 
+break;
+}
+current = current.parentElement;
+}
+setDragState(null); 
+setHoveredSlot(null);
+};
+
+return (
+<div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
+onTouchMove={(e) => {
+if (!dragState) return; 
+// e.preventDefault(); // Sometimes prevents scroll too aggressively on some devices
+const t = e.touches[0];
+setDragState(prev => ({ ...prev, x: t.clientX, y: t.clientY }));
+
+const target = document.elementFromPoint(t.clientX, t.clientY);
+let current = target;
+let foundSlot = null;
+while(current) {
+if (current.dataset?.slotIndex !== undefined) {
+foundSlot = parseInt(current.dataset.slotIndex);
+break;
+}
+current = current.parentElement;
+}
+if (foundSlot !== null) setHoveredSlot(foundSlot);
+else setHoveredSlot(null);
+}}
+onTouchEnd={handleTouchEndGlobal}
+>
+
+{/* Attack Overlays */}
+{isFrozen && <div className="effect-ice">CONGELATO!</div>}
+
+{dragState && (
+<div style={{ position: 'fixed', left: dragState.x, top: dragState.y, width: '70px', height: '70px', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 9999 }}>
+<PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
+</div>
+)}
+
+{showHelper && (
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4" onClick={() => setShowHelper(false)}>
+<img src={config.imageUrl} className="max-w-full max-h-full rounded-lg shadow-2xl" />
+</div>
+)}
+
+{/* Sidebar */}
+<div className="w-full md:w-80 bg-slate-800 flex flex-col border-b md:border-r border-slate-700 z-20 shadow-2xl relative flex-shrink-0 max-h-[40vh] md:max-h-full md:h-full">
+<div className="p-3 border-b border-slate-700 space-y-2">
+<div className="flex justify-between items-center">
+<div>
+<span className="text-xs text-gray-400 uppercase font-bold tracking-wider block">Tempo</span>
+<span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
+</div>
+<div className="flex gap-2">
+<button onClick={resetZoom} className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">Reset View</button>
+<button onClick={onLeave} className="bg-red-600/50 hover:bg-red-600 text-xs px-2 py-1 rounded text-white font-bold">Abbandona</button>
+</div>
+</div>
+
+<div className="grid grid-cols-2 gap-2">
+<button onClick={() => { if(helperCooldown<=0) { setShowHelper(true); setTimeout(() => { setShowHelper(false); setHelperCooldown(15); }, 5000); }}} disabled={helperCooldown > 0} className={`p-2 rounded-lg font-bold text-xs transition ${helperCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-blue-600 text-white'}`}>👁 {helperCooldown > 0 ? helperCooldown : 'Img'}</button>
+<button onClick={() => { if(magicCooldown<=0 && bankPieces.length>0){ 
+const id = bankPieces[Math.floor(Math.random()*bankPieces.length)];
+executeDrop(id, 'bank', null, 'slot', id);
+setMagicCooldown(120);
+}}} disabled={magicCooldown > 0 || bankPieces.length===0} className={`p-2 rounded-lg font-bold text-xs transition ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
+</div>
+
+{/* Offensive Powers */}
+<div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
+<button 
+onClick={() => toggleAttackMode('ice')} 
+disabled={iceCooldown > 0} 
+className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
+                                       selectedAttack === 'ice' ? 'bg-cyan-500 ring-2 ring-white animate-pulse' : 
+                                       iceCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-cyan-600 text-white'
+                                   }`}>
+<span>{selectedAttack === 'ice' ? 'Scegli...' : '❄️ Ghiaccio'}</span>
+{iceCooldown > 0 && <span>{iceCooldown}s</span>}
+</button>
+<button 
+onClick={() => toggleAttackMode('fog')} 
+disabled={fogCooldown > 0} 
+className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
+                                       selectedAttack === 'fog' ? 'bg-gray-400 ring-2 ring-white animate-pulse text-black' : 
+                                       fogCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-gray-500 text-white'
+                                   }`}>
+<span>{selectedAttack === 'fog' ? 'Scegli...' : '☁️ Nebbia'}</span>
+{fogCooldown > 0 && <span>{fogCooldown}s</span>}
+</button>
+</div>
+{selectedAttack && <div className="text-center text-xs text-yellow-300 font-bold animate-bounce">Clicca un avversario!</div>}
+</div>
+
+{/* Leaderboard */}
+<div className="p-2 space-y-1 overflow-y-auto max-h-20 md:max-h-40 border-b border-slate-700 bg-slate-900/40">
+{sortedPlayers.map((p, idx) => {
+const isTargetable = selectedAttack && p.uid !== user.uid;
+return (
+<div 
+key={p.uid} 
+onClick={() => { if(isTargetable) launchAttack(p.uid); }}
+className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 rounded transition
+                                           ${p.uid === user.uid ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30' : 'bg-slate-800/40'}
+                                           ${isTargetable ? 'cursor-pointer hover:bg-red-500/30 ring-2 ring-red-500 scale-[1.02]' : ''}
+                                       `}>
+<div className="flex items-center gap-1 overflow-hidden">
+{isTargetable && <span className="text-lg animate-pulse">🎯</span>}
+<span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
+</div>
+{p.finished ? 
+<span className="text-yellow-400 font-mono text-[10px]">🏆 {formatTime(p.finishTime)}</span> 
+: 
+<div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden ml-2">
+<div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
+</div>
+}
+</div>
+)
+})}
+</div>
+
+{/* Piece Bank */}
+<div id="piece-bank" className="flex-1 overflow-y-auto bg-slate-900/60 p-2 custom-scrollbar"
+onDragOver={(e) => e.preventDefault()}
+onDrop={(e) => {
+const id = parseInt(e.dataTransfer.getData("pieceId"));
+const src = e.dataTransfer.getData("source");
+if (src === 'board') executeDrop(id, 'board', parseInt(e.dataTransfer.getData("srcSlot")), 'bank');
+}}>
+<div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
+{bankPieces.map((id) => (
+<div key={id} draggable={!isFrozen} 
+onContextMenu={(e) => e.preventDefault()}
+style={{ touchAction: 'none' }}
+onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
+onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, id, 'bank'); }} 
+className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
+<PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
+</div>
+))}
+</div>
+</div>
+</div>
+
+{/* Main Board */}
+<div className="flex-1 bg-slate-950 flex items-center justify-center p-0 overflow-hidden relative"
+onWheel={handleWheel}
+onTouchStart={handleBoardTouchStart}
+onTouchMove={handleBoardTouchMove}
+onDoubleClick={resetZoom}
+>
+<div className={`relative shadow-2xl bg-slate-900/30 border border-white/5 transition-transform duration-100 ease-out origin-center ${isBlinded ? 'effect-fog' : ''}`}
+style={{ 
+width: '100%', maxWidth: '95vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '92%',
+transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`
+}}>
+<div className="w-full h-full relative grid" style={{ gridTemplateColumns: `repeat(${diff.cols}, 1fr)`, gridTemplateRows: `repeat(${diff.rows}, 1fr)` }}>
+{Array.from({ length: diff.pieces }).map((_, index) => {
+const piece = boardState[index];
+const isHovered = hoveredSlot === index;
+return (
+<div key={index} data-slot-index={index} 
+className={`relative w-full h-full transition-colors duration-150 ${isHovered ? 'slot-highlight' : ''}`}
+onDragOver={(e) => { if(!piece) { e.preventDefault(); setHoveredSlot(index); } }}
+onDragLeave={() => setHoveredSlot(null)}
+onDrop={(e) => {
+const id = parseInt(e.dataTransfer.getData("pieceId"));
+const src = e.dataTransfer.getData("source");
+executeDrop(id, src, src === 'board' ? parseInt(e.dataTransfer.getData("srcSlot")) : null, 'slot', index);
+}}>
+{!piece && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
+{piece && (
+<div 
+className="absolute animate-pop z-10" 
+style={{ width: '170%', height: '170%', top: '-35%', left: '-35%', touchAction: 'none' }}
+draggable={!isFrozen}
+onContextMenu={(e) => e.preventDefault()}
+onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
+onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, piece.id, 'board', index); }}
+>
+<PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
+</div>
+)}
+</div>
+);
+})}
+</div>
+</div>
+</div>
+</div>
+);
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
 </body>
-</html>
