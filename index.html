@@ -37,7 +37,7 @@
             transition: transform 0.1s;
             filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
             cursor: grab;
-            touch-action: none; /* Fondamentale per il drag immediato su mobile */
+            /* Rimosso touch-action globale: gestito dinamicamente inline per consentire lo scorrimento */
         }
         .puzzle-piece-container:active {
             cursor: grabbing;
@@ -134,7 +134,31 @@
             { id: 13, name: "Montagne", url: "https://i.pinimg.com/736x/87/b2/ef/87b2ef65c5685e15c4eca157357fdf1f.jpg" },
             { id: 14, name: "Sega", url: "https://i.pinimg.com/736x/65/da/fb/65dafbd79828861f9c8060b71d932f85.jpg" },
 			{ id: 15, name: "𝘿𝙚𝙨𝙞𝙧𝙚 𝙙𝙚𝙫𝙤𝙩𝙞𝙤𝙣 𝙥𝙡𝙚𝙖𝙨𝙪𝙧𝙚 / 𝙂𝙧𝙚𝙚𝙙", url: "https://i.pinimg.com/736x/69/c1/74/69c17468955a24f634661d2d3ea6d403.jpg" },
-            { id: 16, name: "Sega Rogers", url: "https://i.pinimg.com/1200x/3e/e2/28/3ee22857e7e927bcd89b9ead6f4274b0.jpg" }
+            { id: 16, name: "Sega Rogers", url: "https://i.pinimg.com/1200x/3e/e2/28/3ee22857e7e927bcd89b9ead6f4274b0.jpg" },
+            { id: 17, name: "Ben 10 : Inferno", url: "https://i.pinimg.com/736x/59/82/1a/59821a3dcc175e62f853eaa60ee9d4be.jpg" },
+            { id: 18, name: "Chill Raichu", url: "https://i.pinimg.com/736x/bd/77/63/bd77636771a6d77130c011cf2577bfc5.jpg" },
+            { id: 19, name: "Zesty Gary", url: "https://i.pinimg.com/736x/7c/ea/a9/7ceaa97af80c6a71e7fcc5f968635394.jpg" },
+            { id: 20, name: "Villa", url: "https://i.pinimg.com/736x/fd/ac/ef/fdacef968d38852e5d6038cce4b09ec7.jpg" },
+            { id: 21, name: "Calma", url: "https://i.pinimg.com/736x/fe/0e/fb/fe0efb1edf871391963db6569004f3c3.jpg" },
+            { id: 22, name: "Mangiami", url: "https://i.pinimg.com/736x/c6/c2/20/c6c220f6bfffb1e44e3dd574e327efc0.jpg" },
+            { id: 23, name: "Rayquaza", url: "https://i.pinimg.com/736x/16/bc/b2/16bcb2f6953c47799bf0dd2593132e09.jpg", align: "object-top", svgAlign: "xMidYMin slice" },
+            { id: 24, name: "Ennis&Jack", url: "https://i.pinimg.com/1200x/70/de/f4/70def47994318b1160d817425e492ef5.jpg" },
+            { id: 25, name: "Meditazione", url: "https://i.pinimg.com/736x/81/c8/b1/81c8b10db578b599e4b4aed2a0be87f8.jpg" },
+            { id: 26, name: "DC Camp", url: "https://i.pinimg.com/736x/12/0f/eb/120febe19a6249aa9967c4db009a8481.jpg" },
+            { id: 27, name: "Roserade", url: "https://i.pinimg.com/736x/d2/66/5d/d2665d4358f6745d2a6a55606bed44a4.jpg" },
+            { id: 28, name: "Liz Gillies", url: "https://i.pinimg.com/736x/c9/79/50/c9795027a0a8a43d138bbcf67323ddc5.jpg" },
+            { id: 29, name: "Lago di Swanna", url: "https://i.pinimg.com/736x/19/18/12/1918121d4b143dcc1f50cc64d93146a7.jpg" },
+            { id: 30, name: "Parco", url: "https://i.pinimg.com/1200x/f8/bb/c7/f8bbc7bb3b77869d2762d1ede25ebcbf.jpg" },
+            { id: 31, name: "Fortnite Chill", url: "https://i.pinimg.com/736x/73/47/17/734717b008bf77371e356748354a2040.jpg" },
+            { id: 32, name: "SU Background 1", url: "https://i.pinimg.com/1200x/b1/b7/2d/b1b72d410965a2ca29c779b77ae92305.jpg" },
+            { id: 33, name: "SU Background 2", url: "https://i.pinimg.com/1200x/64/ae/b1/64aeb1d85bfcfa9c75bed8d1b178b6f5.jpg" },
+            { id: 34, name: "SU BackGround 3", url: "https://i.pinimg.com/1200x/af/31/54/af3154c9626df1b17efffedb0295db28.jpg" },
+            { id: 35, name: "Salotto di Gumball", url: "https://i.pinimg.com/736x/92/11/96/921196951b362f8d1ac67b48204b415b.jpg" },
+            { id: 36, name: "Parco Gumball", url: "https://i.pinimg.com/1200x/08/e9/e4/08e9e419339238dfc05120966a205c0e.jpg" },
+            { id: 37, name: "Will", url: "https://i.pinimg.com/736x/c5/4a/92/c54a92be3f39250c0a9922185d8e988b.jpg" },
+            { id: 38, name: "Oshawott", url: "https://i.pinimg.com/1200x/dc/f7/a7/dcf7a72df0dd9ce3b71032d150846a77.jpg" },
+            { id: 39, name: "Yaoi Bait", url: "https://i.pinimg.com/736x/84/cb/c9/84cbc9193c60c478e6cd3e9ac32af9cb.jpg" },
+            { id: 40, name: "Bill Skarsgard", url: "https://i.pinimg.com/736x/c5/fc/8a/c5fc8a30d7ec8098e31f5cedc5b3f014.jpg" }
         ];
 
         const DIFFICULTIES = [
@@ -142,7 +166,8 @@
             { label: "Normale", pieces: 24, cols: 6, rows: 4 },    
             { label: "Avanzato", pieces: 30, cols: 6, rows: 5 },   
             { label: "Difficile", pieces: 48, cols: 8, rows: 6 },
-            { label: "Malvagia", pieces: 80, cols: 10, rows: 8 }
+            { label: "Malvagia", pieces: 80, cols: 10, rows: 8 },
+            { label: "Estrema", pieces: 100, cols: 10, rows: 10 }
         ];
 
         const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
@@ -198,6 +223,8 @@
                         // Auto-reconnect logic
                         if (data.status === 'playing') {
                             setView('game');
+                        } else if (data.status === 'selecting') {
+                            setView('selecting');
                         } else if (data.status === 'waiting') {
                             setView('room');
                         }
@@ -232,7 +259,7 @@
                 const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 const initialData = {
                     id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
-                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} }],
+                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {}, selectedImageId: IMAGES[0].id }],
                     rankings: [], createdAt: new Date().toISOString()
                 };
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
@@ -248,15 +275,14 @@
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId));
                     if (!snap.exists()) { setError("Stanza non trovata!"); return; }
                     const data = snap.data();
-                    if (data.status !== 'waiting') { setError("Partita già iniziata!"); return; }
+                    if (data.status !== 'waiting') { setError("Partita già iniziata o in estrazione!"); return; }
                     if (!data.players.find(p => p.uid === user.uid)) {
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
-                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {} })
+                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {}, selectedImageId: IMAGES[0].id })
                         });
                     }
                     localStorage.setItem("puzzle_roomId", rId);
                     setRoomId(rId); 
-                    // Listener will switch view
                 } catch(e) { setError("Errore durante l'accesso."); }
             };
 
@@ -268,7 +294,8 @@
             if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white text-2xl font-bold animate-pulse">Caricamento...</div>;
             if (view === "login") return <LoginScreen nickname={nickname} setNickname={setNickname} onEnter={handleLogin} />;
             if (view === "lobby") return <LobbyScreen onCreate={createRoom} onJoin={joinRoom} error={error} />;
-            if (view === "room") return <WaitingRoom room={roomData} user={user} onStart={startGame} />;
+            if (view === "room") return <WaitingRoom room={roomData} user={user} />;
+            if (view === "selecting") return <RouletteScreen room={roomData} user={user} />;
             if (view === "game") return <GameRoom room={roomData} user={user} nickname={nickname} roomId={roomId} appId={appId} onLeave={handleLeaveGame} />;
             return <div>Error</div>;
         }
@@ -289,12 +316,14 @@
 
         function LobbyScreen({ onCreate, onJoin, error }) {
             const [mode, setMode] = React.useState('menu');
-            const [selectedImage, setSelectedImage] = React.useState(IMAGES[0]);
             const [difficulty, setDifficulty] = React.useState(DIFFICULTIES[1]);
             const [showRef, setShowRef] = React.useState(true);
             const [joinCode, setJoinCode] = React.useState("");
 
-            const handleCreate = () => onCreate({ imageId: selectedImage.id, imageUrl: selectedImage.url, difficultyIdx: DIFFICULTIES.indexOf(difficulty), showReference: showRef });
+            const handleCreate = () => onCreate({ 
+                difficultyIdx: DIFFICULTIES.indexOf(difficulty), 
+                showReference: showRef
+            });
 
             return (
                 <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 overflow-y-auto">
@@ -325,16 +354,6 @@
                         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="space-y-6">
                                 <div className="glass-panel p-6 rounded-2xl">
-                                    <h3 className="font-bold text-gray-300 mb-3">Immagine</h3>
-                                    <div className="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                                        {IMAGES.map(img => (
-                                            <div key={img.id} onClick={() => setSelectedImage(img)} className={`cursor-pointer rounded-lg overflow-hidden border-2 transition h-20 relative ${selectedImage.id === img.id ? 'border-purple-500 ring-2 ring-purple-500/50' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                                                <img src={img.url} className="w-full h-full object-cover" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="glass-panel p-6 rounded-2xl">
                                     <h3 className="font-bold text-gray-300 mb-3">Difficoltà</h3>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                         {DIFFICULTIES.map((diff, idx) => (
@@ -351,17 +370,10 @@
                                 </div>
                             </div>
                             <div className="flex flex-col gap-6">
-                                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col items-center justify-center">
-                                    <div className="relative w-64 h-64 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 bg-slate-800">
-                                        <img src={selectedImage.url} className="w-full h-full object-cover opacity-60" />
-                                        <div className="absolute inset-0 grid border border-white/5" style={{ gridTemplateColumns: `repeat(${difficulty.cols}, 1fr)`, gridTemplateRows: `repeat(${difficulty.rows}, 1fr)` }}>
-                                            {Array.from({ length: difficulty.pieces }).map((_, i) => <div key={i} className="border border-white/5"></div>)}
-                                        </div>
-                                    </div>
-                                    <div className="mt-6 text-center">
-                                        <p className="text-purple-400 font-bold text-xl">{selectedImage.name}</p>
-                                        <p className="text-gray-400">{difficulty.label} • {difficulty.pieces} Pezzi</p>
-                                    </div>
+                                <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col items-center justify-center text-center">
+                                    <div className="text-6xl mb-4">🎲</div>
+                                    <h3 className="text-2xl font-bold mb-2">Estrazione Casuale</h3>
+                                    <p className="text-gray-400 px-4">Ogni giocatore sceglierà il suo puzzle preferito nella stanza d'attesa. Il gioco ne estrarrà uno a sorte tra quelli scelti!</p>
                                 </div>
                                 <button onClick={handleCreate} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 py-4 rounded-xl font-bold text-xl shadow-lg transform active:scale-95 transition">CREA PARTITA</button>
                             </div>
@@ -371,40 +383,157 @@
             );
         }
 
-        function WaitingRoom({ room, user, onStart }) {
-            if (!room) return null;
+        function WaitingRoom({ room, user }) {
             const isHost = room.hostId === user.uid;
+            const myPlayer = room.players.find(p => p.uid === user.uid) || {};
+            
+            const updateMyImage = async (imgId) => {
+                const updated = room.players.map(p => p.uid === user.uid ? {...p, selectedImageId: imgId} : p);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { players: updated });
+            };
+
+            const startExtraction = async () => {
+                const pool = room.players.map(p => p.selectedImageId);
+                const winnerId = pool[Math.floor(Math.random() * pool.length)];
+                const winnerImg = IMAGES.find(i => i.id === winnerId) || IMAGES[0];
+                
+                const newConfig = {
+                    ...room.config,
+                    imageId: winnerImg.id,
+                    imageUrl: winnerImg.url,
+                    align: winnerImg.align || 'object-center',
+                    svgAlign: winnerImg.svgAlign || 'none'
+                };
+
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { 
+                    status: 'selecting', 
+                    config: newConfig,
+                    pool: pool 
+                });
+            };
+
             return (
-                <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-white">
-                    <div className="glass-panel max-w-2xl w-full p-8 rounded-3xl text-center">
-                        <h2 className="text-3xl font-bold mb-4">Sala d'Attesa</h2>
-                        <div onClick={() => { navigator.clipboard.writeText(room.id); }} className="bg-slate-800 hover:bg-slate-700 p-6 rounded-2xl inline-flex flex-col cursor-pointer transition border border-slate-700 mb-8">
-                            <span className="text-sm text-gray-400 mb-1">Codice Stanza (clicca per copiare)</span>
-                            <span className="text-5xl font-mono tracking-widest text-purple-400 font-bold">{room.id}</span>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-2xl p-6 mb-8 text-left">
-                            <h3 className="text-gray-400 font-bold mb-4">Giocatori ({room.players.length})</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {room.players.map(p => (
-                                    <div key={p.uid} className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold">{p.name.substring(0,2).toUpperCase()}</div>
-                                        <span className="font-semibold">{p.name}</span>
-                                        {p.uid === room.hostId && <span className="ml-auto text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">HOST</span>}
+                <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col md:flex-row gap-8 overflow-y-auto">
+                    <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col h-fit">
+                        <h2 className="text-3xl font-bold mb-2">Stanza: <span className="text-purple-400 tracking-widest">{room.id}</span></h2>
+                        <p className="text-gray-400 mb-6">In attesa dei giocatori...</p>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-3 max-h-96 custom-scrollbar pr-2">
+                            {room.players.map(p => {
+                                const pImg = IMAGES.find(i => i.id === p.selectedImageId);
+                                return (
+                                    <div key={p.uid} className="bg-slate-800/50 p-3 rounded-xl flex items-center justify-between border border-slate-700">
+                                        <span className="font-bold text-lg">{p.name} {p.uid === room.hostId && '👑'}</span>
+                                        {pImg && <img src={pImg.url} className={`w-16 h-12 object-cover rounded shadow-md ${pImg.align || 'object-center'}`} />}
                                     </div>
-                                ))}
-                            </div>
+                                )
+                            })}
                         </div>
-                        {isHost ? (
-                            <button onClick={onStart} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg transform hover:scale-[1.02] transition">INIZIA ORA</button>
-                        ) : (
-                            <div className="text-purple-300 animate-pulse font-semibold">L'host sta per iniziare...</div>
+                        {isHost && (
+                            <button onClick={startExtraction} className="mt-6 w-full bg-gradient-to-r from-purple-600 to-indigo-600 py-4 rounded-xl font-bold text-xl shadow-lg hover:scale-[1.02] transition">
+                                INIZIA ESTRAZIONE
+                            </button>
                         )}
+                        {!isHost && (
+                            <div className="mt-6 text-center text-gray-400 bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                In attesa che l'host inizi l'estrazione...
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="glass-panel p-6 rounded-2xl flex-[2] flex flex-col">
+                        <h3 className="text-xl font-bold mb-2">Scegli il tuo Puzzle</h3>
+                        <p className="text-gray-400 mb-6 text-sm">Più persone scelgono la stessa immagine, più probabilità avrà di uscire nell'estrazione casuale!</p>
+                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 overflow-y-auto max-h-[60vh] custom-scrollbar pr-2 pb-10">
+                            {IMAGES.map(img => (
+                                <div key={img.id} onClick={() => updateMyImage(img.id)} className={`cursor-pointer rounded-lg overflow-hidden border-4 transition-all h-24 relative ${myPlayer.selectedImageId === img.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)] scale-[1.05] z-10' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                                    <img src={img.url} className={`w-full h-full object-cover ${img.align || 'object-center'}`} />
+                                    {myPlayer.selectedImageId === img.id && <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center"><span className="text-3xl drop-shadow-md text-white font-black">✓</span></div>}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
         }
 
-        const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced }) => {
+        function RouletteScreen({ room, user }) {
+            const isHost = room.hostId === user.uid;
+            const [currentIndex, setCurrentIndex] = React.useState(0);
+            const [isSpinning, setIsSpinning] = React.useState(true);
+            
+            // Creiamo un array visivo basato sulle scelte fatte. 
+            // Se in 3 scelgono l'immagine X, ci saranno 3 immagini X visibili nella ruota.
+            const poolImgs = room.pool.map(id => IMAGES.find(i => i.id === id) || IMAGES[0]);
+            const winnerImgId = room.config.imageId;
+
+            React.useEffect(() => {
+                let speed = 50;
+                let ticks = 0;
+                const maxTicks = 40; 
+                let timeoutId;
+                
+                const spin = () => {
+                    ticks++;
+                    setCurrentIndex(prev => (prev + 1) % poolImgs.length);
+                    
+                    if (ticks < maxTicks) {
+                        speed += 5; // L'animazione rallenta progressivamente
+                        timeoutId = setTimeout(spin, speed);
+                    } else {
+                        // Ci fermiamo forzatamente sul vincitore calcolato in precedenza
+                        const winnerIdx = poolImgs.findIndex(i => i.id === winnerImgId);
+                        setCurrentIndex(winnerIdx !== -1 ? winnerIdx : 0);
+                        setIsSpinning(false);
+                        
+                        if (isHost) {
+                            // L'host aspetta 4 secondi dopo l'estrazione per avviare il gioco per tutti
+                            timeoutId = setTimeout(async () => {
+                                try {
+                                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { 
+                                        status: 'playing',
+                                        startTime: new Date().toISOString()
+                                    });
+                                } catch (e) { console.error(e); }
+                            }, 4000);
+                        }
+                    }
+                };
+                timeoutId = setTimeout(spin, speed);
+                return () => clearTimeout(timeoutId);
+            }, [isHost, poolImgs.length, room.id, winnerImgId]);
+
+            const currentImg = poolImgs[currentIndex];
+
+            return (
+                <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 mb-8 md:mb-12 text-center animate-pulse">
+                        {isSpinning ? "Estrazione Puzzle..." : "Puzzle Scelto!"}
+                    </h2>
+                    
+                    <div className={`relative w-64 h-64 md:w-96 md:h-96 rounded-2xl overflow-hidden border-8 transition-all duration-300 ${isSpinning ? 'border-purple-500/50 shadow-[0_0_50px_rgba(168,85,247,0.5)]' : 'border-green-400 shadow-[0_0_100px_rgba(74,222,128,0.8)] scale-110 z-10'}`}>
+                        {currentImg && (
+                            <img src={currentImg.url} className={`w-full h-full object-cover ${currentImg.align || 'object-center'}`} />
+                        )}
+                    </div>
+                    
+                    <div className="mt-8 text-2xl font-bold text-white h-10 text-center">
+                        {currentImg?.name}
+                    </div>
+                    
+                    {/* Elenco visivo delle "puntate" (pool) per vedere le probabilità in gioco */}
+                    <div className="mt-12 flex gap-3 max-w-2xl flex-wrap justify-center px-4">
+                        {poolImgs.map((img, idx) => (
+                            <div key={idx} className={`w-12 h-12 md:w-16 md:h-16 rounded overflow-hidden border-2 transition-all ${idx === currentIndex ? 'border-white scale-125 opacity-100 shadow-lg' : 'border-transparent opacity-40'}`}>
+                                <img src={img.url} className={`w-full h-full object-cover ${img.align || 'object-center'}`} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        const PuzzlePieceSVG = ({ shape, imageUrl, row, col, cols, rows, isPlaced, svgAlign = "none" }) => {
             if (!shape) return null;
             const unitW = 100; const unitH = 100;
             const pathData = generatePath(unitW, unitH, shape.top, shape.right, shape.bottom, shape.left);
@@ -415,7 +544,7 @@
                 <svg viewBox={`-35 -35 ${unitW+70} ${unitH+70}`} className="w-full h-full overflow-visible pointer-events-none">
                     <defs><clipPath id={`clip-${id}`}><path d={pathData} /></clipPath></defs>
                     <g clipPath={`url(#clip-${id})`}>
-                        <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio="none" />
+                        <image href={imageUrl} x={imgX} y={imgY} width={totalW} height={totalH} preserveAspectRatio={svgAlign} />
                         {!isPlaced && <path d={pathData} fill="white" fillOpacity="0.1" />}
                     </g>
                     {!isPlaced && <path d={pathData} fill="none" stroke="#222" strokeWidth="1" />}
@@ -453,6 +582,10 @@
 
             const allPiecesRef = React.useRef({});
             const myFinishRef = React.useRef(false);
+
+            // Refs per distinguere tra scroll del bank e drag dei pezzi
+            const touchTimerRef = React.useRef(null);
+            const pendingDragRef = React.useRef(null);
 
             // Active Effects on ME
             const myPlayer = room.players.find(p => p.uid === user.uid);
@@ -514,7 +647,10 @@
                 }
 
                 const interval = setInterval(() => { if (!myFinishRef.current) setTimer(t => t + 1); }, 1000);
-                return () => clearInterval(interval);
+                return () => {
+                    clearInterval(interval);
+                    if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+                };
             }, []);
 
             // Save state on change
@@ -664,22 +800,44 @@
             
             const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
 
-            // Dedicated Touch Start for pieces (fixes hold delay)
+            // Dedicated Touch Start for pieces (fixes hold delay e permette scroll)
             const handlePieceTouchStart = (e, pieceId, source, slotIndex = null) => {
-                 e.preventDefault(); // Stop instant scroll/context
                  e.stopPropagation(); // Stop board pan
                  const touch = e.touches[0];
-                 setDragState({
-                    pieceId,
-                    source,
-                    srcSlot: slotIndex,
-                    x: touch.clientX,
-                    y: touch.clientY
-                 });
+                 
+                 if (source === 'board') {
+                     // Sulla plancia prendiamo il pezzo immediatamente
+                     if (e.cancelable) e.preventDefault();
+                     setDragState({ pieceId, source, srcSlot: slotIndex, x: touch.clientX, y: touch.clientY });
+                     return;
+                 }
+
+                 // Nel bank, aspettiamo 150ms per capire se l'utente vuole scorrere o trascinare
+                 pendingDragRef.current = {
+                    pieceId, source, srcSlot: slotIndex, startX: touch.clientX, startY: touch.clientY
+                 };
+
+                 touchTimerRef.current = setTimeout(() => {
+                     if (pendingDragRef.current) {
+                         setDragState({
+                            pieceId: pendingDragRef.current.pieceId,
+                            source: pendingDragRef.current.source,
+                            srcSlot: pendingDragRef.current.srcSlot,
+                            x: pendingDragRef.current.startX,
+                            y: pendingDragRef.current.startY
+                         });
+                         pendingDragRef.current = null;
+                         if (navigator.vibrate) navigator.vibrate(50); // Feedback aptico opzionale
+                     }
+                 }, 150);
             };
 
             // Robust Drop Handler for Touch
             const handleTouchEndGlobal = (e) => {
+                // Cancella timer se l'utente rilascia prima che parta il drag
+                if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+                pendingDragRef.current = null;
+
                 setIsPanning(false);
                 if (!dragState) return;
 
@@ -713,8 +871,24 @@
             return (
                 <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
                      onTouchMove={(e) => {
+                        // Distinguiamo tra scroll nativo della lista e movimento di trascinamento
+                        if (pendingDragRef.current && !dragState) {
+                            const t = e.touches[0];
+                            const dx = Math.abs(t.clientX - pendingDragRef.current.startX);
+                            const dy = Math.abs(t.clientY - pendingDragRef.current.startY);
+                            if (dx > 10 || dy > 10) {
+                                // È un movimento rapido (swipe): annulliamo il drag per lasciar scorrere
+                                clearTimeout(touchTimerRef.current);
+                                pendingDragRef.current = null;
+                            }
+                            return; 
+                        }
+
                         if (!dragState) return; 
-                        // e.preventDefault(); // Sometimes prevents scroll too aggressively on some devices
+                        
+                        // Blocchiamo lo scroll nativo del browser mentre stiamo trascinando un pezzo
+                        if (e.cancelable) e.preventDefault(); 
+                        
                         const t = e.touches[0];
                         setDragState(prev => ({ ...prev, x: t.clientX, y: t.clientY }));
                         
@@ -739,7 +913,7 @@
                     
                     {dragState && (
                         <div style={{ position: 'fixed', left: dragState.x, top: dragState.y, width: '70px', height: '70px', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 9999 }}>
-                            <PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
+                            <PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} svgAlign={config.svgAlign || "none"} />
                         </div>
                     )}
 
@@ -838,11 +1012,11 @@
                                 {bankPieces.map((id) => (
                                     <div key={id} draggable={!isFrozen} 
                                          onContextMenu={(e) => e.preventDefault()}
-                                         style={{ touchAction: 'none' }}
+                                         style={{ touchAction: 'pan-y' }}
                                          onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
                                          onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, id, 'bank'); }} 
                                          className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
-                                        <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} />
+                                        <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} svgAlign={config.svgAlign || "none"} />
                                     </div>
                                 ))}
                             </div>
@@ -858,7 +1032,7 @@
                     >
                         <div className={`relative shadow-2xl bg-slate-900/30 border border-white/5 transition-transform duration-100 ease-out origin-center ${isBlinded ? 'effect-fog' : ''}`}
                              style={{ 
-                                 width: '100%', maxWidth: '95vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '92%',
+                                 width: '100%', maxWidth: '85vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '85vh',
                                  transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`
                              }}>
                             <div className="w-full h-full relative grid" style={{ gridTemplateColumns: `repeat(${diff.cols}, 1fr)`, gridTemplateRows: `repeat(${diff.rows}, 1fr)` }}>
@@ -885,7 +1059,7 @@
                                                     onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
                                                     onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, piece.id, 'board', index); }}
                                                 >
-                                                     <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} />
+                                                     <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} svgAlign={config.svgAlign || "none"} />
                                                 </div>
                                             )}
                                         </div>
