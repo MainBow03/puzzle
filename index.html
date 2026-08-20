@@ -37,7 +37,6 @@
             transition: transform 0.1s;
             filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
             cursor: grab;
-            /* Rimosso touch-action globale: gestito dinamicamente inline per consentire lo scorrimento */
         }
         .puzzle-piece-container:active {
             cursor: grabbing;
@@ -91,6 +90,16 @@
             0%, 100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7); }
             50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
         }
+        
+        /* Eliminated Overlay */
+        .effect-eliminated {
+            position: absolute; inset: 0; z-index: 60;
+            background: rgba(153, 27, 27, 0.8);
+            backdrop-filter: blur(4px) grayscale(0.8);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -190,6 +199,11 @@
             { label: "Estrema", pieces: 100, cols: 10, rows: 10 }
         ];
 
+        const GAME_MODES = [
+            { id: 'classic', label: 'Corsa Classica', icon: '⏱️', desc: 'Finisci per primo il puzzle!' },
+            { id: 'survival', label: 'Sopravvivenza', icon: '🔥', desc: 'Il timer scende! Incastra i pezzi per non farti eliminare.' }
+        ];
+
         const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
             const tabSize = Math.min(width, height) * 0.25; 
             const w = width; const h = height;
@@ -224,39 +238,28 @@
                     if (u) { 
                         setUser(u); 
                         if (!roomId) setView("login"); 
-                        // If roomId exists, let the room listener handle the view transition
                     } 
                 });
             }, []);
 
             React.useEffect(() => {
                 if (!roomId || !user) return;
-                
-                // Show loading while reconnecting
                 if (view === "login") setView("loading");
 
                 const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         setRoomData(data);
-                        
-                        // Auto-reconnect logic
-                        if (data.status === 'playing') {
-                            setView('game');
-                        } else if (data.status === 'selecting') {
-                            setView('selecting');
-                        } else if (data.status === 'waiting') {
-                            setView('room');
-                        }
+                        if (data.status === 'playing') setView('game');
+                        else if (data.status === 'selecting') setView('selecting');
+                        else if (data.status === 'waiting') setView('room');
                     } else { 
                         setError("Stanza non trovata o scaduta."); 
                         localStorage.removeItem("puzzle_roomId");
                         setRoomId(null);
                         setView("lobby"); 
                     }
-                }, (err) => {
-                     console.error("Room sync error", err);
-                });
+                }, (err) => console.error("Room sync error", err));
                 return () => unsub();
             }, [roomId, user]);
 
@@ -269,7 +272,7 @@
             
             const handleLeaveGame = () => {
                 localStorage.removeItem("puzzle_roomId");
-                localStorage.removeItem(`puzzle_state_${roomId}`); // Clear saved board
+                localStorage.removeItem(`puzzle_state_${roomId}`); 
                 setRoomId(null);
                 setRoomData(null);
                 setView("lobby");
@@ -279,7 +282,12 @@
                 const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 const initialData = {
                     id: newRoomId, hostId: user.uid, hostName: nickname, status: 'waiting', config,
-                    players: [{ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {}, selectedImageId: IMAGES[0].id }],
+                    players: [{ 
+                        uid: user.uid, name: nickname, progress: 0, 
+                        finished: false, finishTime: null, effects: {}, 
+                        selectedImageId: IMAGES[0].id, selectedTime: 60, eliminated: false, 
+                        timeLeft: config.gameMode === 'survival' ? 60 : 0 
+                    }],
                     rankings: [], createdAt: new Date().toISOString()
                 };
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId), initialData);
@@ -298,17 +306,17 @@
                     if (data.status !== 'waiting') { setError("Partita già iniziata o in estrazione!"); return; }
                     if (!data.players.find(p => p.uid === user.uid)) {
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', rId), {
-                            players: arrayUnion({ uid: user.uid, name: nickname, progress: 0, finished: false, finishTime: null, effects: {}, selectedImageId: IMAGES[0].id })
+                            players: arrayUnion({ 
+                                uid: user.uid, name: nickname, progress: 0, 
+                                finished: false, finishTime: null, effects: {}, 
+                                selectedImageId: IMAGES[0].id, selectedTime: 60, eliminated: false, 
+                                timeLeft: data.config.gameMode === 'survival' ? 60 : 0 
+                            })
                         });
                     }
                     localStorage.setItem("puzzle_roomId", rId);
                     setRoomId(rId); 
                 } catch(e) { setError("Errore durante l'accesso."); }
-            };
-
-            const startGame = async () => {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { status: 'playing', startTime: new Date().toISOString() });
-                setView("game");
             };
 
             if (view === "loading") return <div className="min-h-screen flex items-center justify-center text-white text-2xl font-bold animate-pulse">Caricamento...</div>;
@@ -337,12 +345,14 @@
         function LobbyScreen({ onCreate, onJoin, error }) {
             const [mode, setMode] = React.useState('menu');
             const [difficulty, setDifficulty] = React.useState(DIFFICULTIES[1]);
+            const [gameMode, setGameMode] = React.useState('classic');
             const [showRef, setShowRef] = React.useState(true);
             const [joinCode, setJoinCode] = React.useState("");
 
             const handleCreate = () => onCreate({ 
                 difficultyIdx: DIFFICULTIES.indexOf(difficulty), 
-                showReference: showRef
+                showReference: showRef,
+                gameMode: gameMode
             });
 
             return (
@@ -373,6 +383,23 @@
                     ) : (
                         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="space-y-6">
+                                {/* Selezione Modalità */}
+                                <div className="glass-panel p-6 rounded-2xl">
+                                    <h3 className="font-bold text-gray-300 mb-3">Modalità di Gioco</h3>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {GAME_MODES.map(m => (
+                                            <button key={m.id} onClick={() => setGameMode(m.id)} 
+                                                className={`p-3 rounded-xl transition text-left flex items-center gap-3 border ${gameMode === m.id ? 'bg-indigo-600 border-indigo-400 shadow-lg' : 'bg-slate-800 border-slate-700 text-gray-400 hover:bg-slate-700'}`}>
+                                                <span className="text-2xl">{m.icon}</span>
+                                                <div>
+                                                    <div className="font-bold text-white">{m.label}</div>
+                                                    <div className="text-xs opacity-80">{m.desc}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                
                                 <div className="glass-panel p-6 rounded-2xl">
                                     <h3 className="font-bold text-gray-300 mb-3">Difficoltà</h3>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -412,30 +439,46 @@
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { players: updated });
             };
 
+            const updateMyTime = async (time) => {
+                const updated = room.players.map(p => p.uid === user.uid ? {...p, selectedTime: time} : p);
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { players: updated });
+            };
+
             const startExtraction = async () => {
                 const pool = room.players.map(p => p.selectedImageId);
                 const winnerId = pool[Math.floor(Math.random() * pool.length)];
                 const winnerImg = IMAGES.find(i => i.id === winnerId) || IMAGES[0];
                 
+                const timePool = room.players.map(p => p.selectedTime || 60);
+                const winnerTime = timePool[Math.floor(Math.random() * timePool.length)];
+
                 const newConfig = {
                     ...room.config,
                     imageId: winnerImg.id,
                     imageUrl: winnerImg.url,
                     align: winnerImg.align || 'object-center',
-                    svgAlign: winnerImg.svgAlign || 'none'
+                    svgAlign: winnerImg.svgAlign || 'none',
+                    startingTime: winnerTime
                 };
 
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { 
                     status: 'selecting', 
                     config: newConfig,
-                    pool: pool 
+                    pool: pool,
+                    timePool: timePool
                 });
             };
+
+            const modeLabel = GAME_MODES.find(m => m.id === room.config.gameMode)?.label || "Classica";
+            const survivalTimes = [30, 40, 50, 60, 70];
 
             return (
                 <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col md:flex-row gap-8 overflow-y-auto">
                     <div className="glass-panel p-6 rounded-2xl flex-1 flex flex-col h-fit">
-                        <h2 className="text-3xl font-bold mb-2">Stanza: <span className="text-purple-400 tracking-widest">{room.id}</span></h2>
+                        <h2 className="text-3xl font-bold mb-1">Stanza: <span className="text-purple-400 tracking-widest">{room.id}</span></h2>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 border border-slate-700 inline-block px-2 py-1 rounded bg-slate-800 w-fit">
+                            Modalità: {modeLabel}
+                        </div>
                         <p className="text-gray-400 mb-6">In attesa dei giocatori...</p>
                         
                         <div className="flex-1 overflow-y-auto space-y-3 max-h-96 custom-scrollbar pr-2">
@@ -443,7 +486,10 @@
                                 const pImg = IMAGES.find(i => i.id === p.selectedImageId);
                                 return (
                                     <div key={p.uid} className="bg-slate-800/50 p-3 rounded-xl flex items-center justify-between border border-slate-700">
-                                        <span className="font-bold text-lg">{p.name} {p.uid === room.hostId && '👑'}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-lg">{p.name} {p.uid === room.hostId && '👑'}</span>
+                                            {room.config.gameMode === 'survival' && <span className="text-xs text-orange-400">Tempo scelto: {p.selectedTime || 60}s</span>}
+                                        </div>
                                         {pImg && <img src={pImg.url} className={`w-16 h-12 object-cover rounded shadow-md ${pImg.align || 'object-center'}`} />}
                                     </div>
                                 )
@@ -462,6 +508,20 @@
                     </div>
 
                     <div className="glass-panel p-6 rounded-2xl flex-[2] flex flex-col">
+                        {room.config.gameMode === 'survival' && (
+                            <div className="mb-8">
+                                <h3 className="text-xl font-bold mb-2 text-orange-400">Scegli il Tempo Iniziale</h3>
+                                <p className="text-gray-400 mb-4 text-sm">Più persone scelgono lo stesso tempo, più probabilità avrà di uscire!</p>
+                                <div className="flex gap-2 flex-wrap">
+                                    {survivalTimes.map(t => (
+                                        <button key={t} onClick={() => updateMyTime(t)} className={`px-4 py-2 rounded-xl font-bold transition-all border-2 ${myPlayer.selectedTime === t || (!myPlayer.selectedTime && t === 60) ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_15px_rgba(249,115,22,0.5)] scale-105' : 'bg-slate-800 border-slate-700 text-gray-400 hover:bg-slate-700'}`}>
+                                            {t} sec
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <h3 className="text-xl font-bold mb-2">Scegli il tuo Puzzle</h3>
                         <p className="text-gray-400 mb-6 text-sm">Più persone scelgono la stessa immagine, più probabilità avrà di uscire nell'estrazione casuale!</p>
                         <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 overflow-y-auto max-h-[60vh] custom-scrollbar pr-2 pb-10">
@@ -480,69 +540,70 @@
         function RouletteScreen({ room, user }) {
             const isHost = room.hostId === user.uid;
             const [currentIndex, setCurrentIndex] = React.useState(0);
+            const [currentTimeIndex, setCurrentTimeIndex] = React.useState(0);
             const [isSpinning, setIsSpinning] = React.useState(true);
             
-            // Creiamo un array visivo basato sulle scelte fatte. 
-            // Se in 3 scelgono l'immagine X, ci saranno 3 immagini X visibili nella ruota.
             const poolImgs = room.pool.map(id => IMAGES.find(i => i.id === id) || IMAGES[0]);
             const winnerImgId = room.config.imageId;
+            
+            const poolTimes = room.timePool || [60];
+            const winnerTime = room.config.startingTime || 60;
+            const isSurvival = room.config.gameMode === 'survival';
 
             React.useEffect(() => {
-                let speed = 50;
-                let ticks = 0;
-                const maxTicks = 40; 
-                let timeoutId;
-                
+                let speed = 50; let ticks = 0; const maxTicks = 40; let timeoutId;
                 const spin = () => {
-                    ticks++;
-                    setCurrentIndex(prev => (prev + 1) % poolImgs.length);
-                    
-                    if (ticks < maxTicks) {
-                        speed += 5; // L'animazione rallenta progressivamente
-                        timeoutId = setTimeout(spin, speed);
-                    } else {
-                        // Ci fermiamo forzatamente sul vincitore calcolato in precedenza
+                    ticks++; setCurrentIndex(prev => (prev + 1) % poolImgs.length);
+                    setCurrentTimeIndex(prev => (prev + 1) % poolTimes.length);
+                    if (ticks < maxTicks) { speed += 5; timeoutId = setTimeout(spin, speed); } 
+                    else {
                         const winnerIdx = poolImgs.findIndex(i => i.id === winnerImgId);
                         setCurrentIndex(winnerIdx !== -1 ? winnerIdx : 0);
-                        setIsSpinning(false);
                         
+                        const winnerTimeIdx = poolTimes.findIndex(t => t === winnerTime);
+                        setCurrentTimeIndex(winnerTimeIdx !== -1 ? winnerTimeIdx : 0);
+                        
+                        setIsSpinning(false);
                         if (isHost) {
-                            // L'host aspetta 4 secondi dopo l'estrazione per avviare il gioco per tutti
                             timeoutId = setTimeout(async () => {
-                                try {
-                                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { 
-                                        status: 'playing',
-                                        startTime: new Date().toISOString()
-                                    });
-                                } catch (e) { console.error(e); }
+                                try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id), { status: 'playing', startTime: new Date().toISOString() }); } 
+                                catch (e) { console.error(e); }
                             }, 4000);
                         }
                     }
                 };
                 timeoutId = setTimeout(spin, speed);
                 return () => clearTimeout(timeoutId);
-            }, [isHost, poolImgs.length, room.id, winnerImgId]);
+            }, [isHost, poolImgs.length, poolTimes.length, room.id, winnerImgId, winnerTime]);
 
             const currentImg = poolImgs[currentIndex];
+            const currentTime = poolTimes[currentTimeIndex];
 
             return (
-                <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+                <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 overflow-y-auto">
                     <h2 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 mb-8 md:mb-12 text-center animate-pulse">
-                        {isSpinning ? "Estrazione Puzzle..." : "Puzzle Scelto!"}
+                        {isSpinning ? "Estrazione in corso..." : "Estrazione Completata!"}
                     </h2>
                     
-                    <div className={`relative w-64 h-64 md:w-96 md:h-96 rounded-2xl overflow-hidden border-8 transition-all duration-300 ${isSpinning ? 'border-purple-500/50 shadow-[0_0_50px_rgba(168,85,247,0.5)]' : 'border-green-400 shadow-[0_0_100px_rgba(74,222,128,0.8)] scale-110 z-10'}`}>
-                        {currentImg && (
-                            <img src={currentImg.url} className={`w-full h-full object-cover ${currentImg.align || 'object-center'}`} />
+                    <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
+                        <div className="flex flex-col items-center">
+                            <div className={`relative w-64 h-64 md:w-96 md:h-96 rounded-2xl overflow-hidden border-8 transition-all duration-300 ${isSpinning ? 'border-purple-500/50 shadow-[0_0_50px_rgba(168,85,247,0.5)]' : 'border-green-400 shadow-[0_0_100px_rgba(74,222,128,0.8)] scale-110 z-10'}`}>
+                                {currentImg && <img src={currentImg.url} className={`w-full h-full object-cover ${currentImg.align || 'object-center'}`} />}
+                            </div>
+                            <div className="mt-8 text-2xl font-bold text-white h-10 text-center">{currentImg?.name}</div>
+                        </div>
+
+                        {isSurvival && (
+                            <div className="flex flex-col items-center mt-4 md:mt-0">
+                                <div className={`flex items-center justify-center w-32 h-32 md:w-48 md:h-48 rounded-full border-8 transition-all duration-300 ${isSpinning ? 'border-orange-500/50 shadow-[0_0_50px_rgba(249,115,22,0.5)] bg-slate-800' : 'border-yellow-400 shadow-[0_0_100px_rgba(250,204,21,0.8)] bg-orange-600 scale-110 z-10'}`}>
+                                    <span className="text-5xl md:text-7xl font-black text-white">{currentTime}s</span>
+                                </div>
+                                <div className="mt-8 text-xl font-bold text-orange-400 h-10 text-center uppercase tracking-widest">Tempo Iniziale</div>
+                            </div>
                         )}
                     </div>
-                    
-                    <div className="mt-8 text-2xl font-bold text-white h-10 text-center">
-                        {currentImg?.name}
-                    </div>
-                    
-                    {/* Elenco visivo delle "puntate" (pool) per vedere le probabilità in gioco */}
-                    <div className="mt-12 flex gap-3 max-w-2xl flex-wrap justify-center px-4">
+
+                    <div className="mt-12 flex gap-3 max-w-2xl flex-wrap justify-center px-4 pb-8">
                         {poolImgs.map((img, idx) => (
                             <div key={idx} className={`w-12 h-12 md:w-16 md:h-16 rounded overflow-hidden border-2 transition-all ${idx === currentIndex ? 'border-white scale-125 opacity-100 shadow-lg' : 'border-transparent opacity-40'}`}>
                                 <img src={img.url} className={`w-full h-full object-cover ${img.align || 'object-center'}`} />
@@ -576,10 +637,26 @@
             if (!room) return null;
             const config = room.config;
             const diff = DIFFICULTIES[config.difficultyIdx];
+            const isSurvival = config.gameMode === 'survival';
+            const startingTime = config.startingTime || 60;
 
             const [bankPieces, setBankPieces] = React.useState([]); 
             const [boardState, setBoardState] = React.useState({}); 
             const [timer, setTimer] = React.useState(0);
+            
+            // Survival State
+            const [survivalTime, setSurvivalTime] = React.useState(startingTime);
+            const [isEliminated, setIsEliminated] = React.useState(false);
+            const survivalTimeRef = React.useRef(startingTime);
+            const myEliminatedRef = React.useRef(false);
+
+            // Spectator & End Game State
+            const [isFinished, setIsFinished] = React.useState(false);
+            const [showEliminationScreen, setShowEliminationScreen] = React.useState(true);
+            const [showFinishedScreen, setShowFinishedScreen] = React.useState(true);
+            const [spectatingUserId, setSpectatingUserId] = React.useState(null);
+            const boardStateRef = React.useRef(boardState);
+
             const [showHelper, setShowHelper] = React.useState(false);
             
             // Cooldowns
@@ -598,21 +675,26 @@
             const [isPanning, setIsPanning] = React.useState(false);
 
             // Attack State
-            const [selectedAttack, setSelectedAttack] = React.useState(null); // 'ice' | 'fog' | null
+            const [selectedAttack, setSelectedAttack] = React.useState(null);
 
             const allPiecesRef = React.useRef({});
             const myFinishRef = React.useRef(false);
+            const latestProgressRef = React.useRef(0);
+            const roomPlayersRef = React.useRef(room.players);
 
-            // Refs per distinguere tra scroll del bank e drag dei pezzi
             const touchTimerRef = React.useRef(null);
             const pendingDragRef = React.useRef(null);
+            const scoredPiecesRef = React.useRef(new Set()); // Novità: Registro dei pezzi che hanno già dato punteggio
 
-            // Active Effects on ME
-            const myPlayer = room.players.find(p => p.uid === user.uid);
+            const myPlayer = roomPlayersRef.current.find(p => p.uid === user.uid);
             const frozenUntil = myPlayer?.effects?.frozenUntil || 0;
             const blindedUntil = myPlayer?.effects?.blindedUntil || 0;
             const isFrozen = Date.now() < frozenUntil;
             const isBlinded = Date.now() < blindedUntil;
+
+            React.useEffect(() => { roomPlayersRef.current = room.players; }, [room.players]);
+            React.useEffect(() => { survivalTimeRef.current = survivalTime; }, [survivalTime]);
+            React.useEffect(() => { boardStateRef.current = boardState; }, [boardState]);
 
             React.useEffect(() => {
                 const initialBank = []; const allP = {}; const allShapes = {};
@@ -632,13 +714,11 @@
                 }
                 allPiecesRef.current = allP;
 
-                // --- RESTORE STATE LOGIC ---
                 const savedState = localStorage.getItem(`puzzle_state_${roomId}`);
-                if (savedState) {
+                if (savedState && !isSurvival) { // Non ripristinare stato se è survival (per evitare trucchi)
                     try {
                         const parsed = JSON.parse(savedState);
                         const restoredBoard = {};
-                        // Re-attach piece objects from allP using saved IDs
                         if (parsed.boardState) {
                             Object.keys(parsed.boardState).forEach(key => {
                                 const pid = parsed.boardState[key].id;
@@ -646,40 +726,51 @@
                             });
                         }
                         setBoardState(restoredBoard);
-                        
-                        // Calculate bank pieces by removing board pieces from all pieces
                         const boardIds = Object.values(restoredBoard).map(p => p.id);
                         const newBank = initialBank.filter(id => !boardIds.includes(id));
                         setBankPieces(newBank.sort(() => Math.random() - 0.5));
-                    } catch(e) {
-                        console.error("State restore error", e);
-                        setBankPieces(initialBank.sort(() => Math.random() - 0.5));
-                    }
+                    } catch(e) { setBankPieces(initialBank.sort(() => Math.random() - 0.5)); }
                 } else {
                     setBankPieces(initialBank.sort(() => Math.random() - 0.5));
                 }
                 
-                // Timer sync with server start time
-                if (room.startTime) {
+                if (room.startTime && !isSurvival) {
                     const start = new Date(room.startTime).getTime();
                     const now = new Date().getTime();
                     setTimer(Math.floor((now - start) / 1000));
                 }
 
-                const interval = setInterval(() => { if (!myFinishRef.current) setTimer(t => t + 1); }, 1000);
-                return () => {
-                    clearInterval(interval);
-                    if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
-                };
+                // Game Loop Timer (Classic UP, Survival DOWN)
+                const interval = setInterval(() => { 
+                    if (!myFinishRef.current) {
+                        if (isSurvival) {
+                            if (myEliminatedRef.current) return;
+                            setSurvivalTime(t => {
+                                const newT = t - 1;
+                                if (newT <= 0) {
+                                    myEliminatedRef.current = true;
+                                    setIsEliminated(true);
+                                    handleElimination();
+                                    return 0;
+                                }
+                                return newT;
+                            });
+                        } else {
+                            setTimer(t => t + 1); 
+                        }
+                    }
+                }, 1000);
+
+                return () => { clearInterval(interval); if (touchTimerRef.current) clearTimeout(touchTimerRef.current); };
             }, []);
 
-            // Save state on change
             React.useEffect(() => {
-                if (Object.keys(boardState).length >= 0) { // Save even if empty to clear
+                if (!isSurvival && Object.keys(boardState).length >= 0) {
                      localStorage.setItem(`puzzle_state_${roomId}`, JSON.stringify({ boardState }));
                 }
-            }, [boardState, roomId]);
+            }, [boardState, roomId, isSurvival]);
 
+            // Cooldowns loop
             React.useEffect(() => {
                 const t = setInterval(() => {
                     if(helperCooldown > 0) setHelperCooldown(c => c - 1);
@@ -690,46 +781,92 @@
                 return () => clearInterval(t);
             }, [helperCooldown, magicCooldown, iceCooldown, fogCooldown]);
             
-            // Victory & Progress Logic
+            // Progress Calculation Local
             React.useEffect(() => {
                 if (Object.keys(allPiecesRef.current).length === 0) return;
                 let correctCount = 0; let isComplete = true;
                 for(let i=0; i<diff.pieces; i++) {
                     if (boardState[i]?.id === i) correctCount++; else isComplete = false;
                 }
-                const updateRemote = async () => {
-                    const progress = Math.round((correctCount / diff.pieces) * 100);
-                    const myPlayerIndex = room.players.findIndex(p => p.uid === user.uid);
-                    if (myPlayerIndex === -1) return;
-                    if (room.players[myPlayerIndex].progress !== progress) {
-                        const updatedPlayers = [...room.players];
-                        updatedPlayers[myPlayerIndex] = { ...updatedPlayers[myPlayerIndex], progress };
-                        let rankingsUpdate = {};
-                        if (isComplete && !room.players[myPlayerIndex].finished) {
-                            myFinishRef.current = true;
-                            updatedPlayers[myPlayerIndex].finished = true;
-                            updatedPlayers[myPlayerIndex].finishTime = timer;
-                            rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: timer }) };
-                        }
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers, ...rankingsUpdate });
-                    }
-                };
-                updateRemote();
+                latestProgressRef.current = Math.round((correctCount / diff.pieces) * 100);
+                
+                if (isComplete && !myFinishRef.current && !myEliminatedRef.current) {
+                    myFinishRef.current = true;
+                    setIsFinished(true);
+                    handleFinish(latestProgressRef.current);
+                }
             }, [boardState]);
+
+            // Firebase Synchronization Loop (Debounced Network Optimization)
+            React.useEffect(() => {
+                const syncInterval = setInterval(async () => {
+                    if (myFinishRef.current || myEliminatedRef.current) return;
+                    
+                    const myIdx = roomPlayersRef.current.findIndex(p => p.uid === user.uid);
+                    if (myIdx === -1) return;
+                    
+                    const currentP = roomPlayersRef.current[myIdx];
+                    const newProg = latestProgressRef.current;
+                    const newTime = isSurvival ? survivalTimeRef.current : 0;
+                    
+                    const simplifiedBoard = {};
+                    for (const [key, value] of Object.entries(boardStateRef.current)) {
+                        simplifiedBoard[key] = value.id;
+                    }
+                    const newBoardStr = JSON.stringify(simplifiedBoard);
+                    const currentBoardStr = JSON.stringify(currentP.board || {});
+                    
+                    // Solo se i progressi, il tempo o la plancia sono cambiati
+                    if (currentP.progress !== newProg || (isSurvival && Math.abs(currentP.timeLeft - newTime) >= 2) || currentBoardStr !== newBoardStr) {
+                        const updatedPlayers = [...roomPlayersRef.current];
+                        updatedPlayers[myIdx] = { ...updatedPlayers[myIdx], progress: newProg, timeLeft: newTime, board: simplifiedBoard };
+                        try {
+                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers });
+                        } catch(e) { console.error("Sync error", e); }
+                    }
+                }, 2500); // Aggiorna Firebase ogni 2.5 secondi
+                return () => clearInterval(syncInterval);
+            }, [isSurvival, appId, roomId, user.uid]);
+
+            const getSimplifiedBoard = () => {
+                const b = {};
+                for (const [key, value] of Object.entries(boardStateRef.current)) {
+                    b[key] = value.id;
+                }
+                return b;
+            };
+
+            const handleElimination = async () => {
+                 const myIdx = roomPlayersRef.current.findIndex(p => p.uid === user.uid);
+                 if (myIdx === -1) return;
+                 const updatedPlayers = [...roomPlayersRef.current];
+                 updatedPlayers[myIdx] = { ...updatedPlayers[myIdx], eliminated: true, timeLeft: 0, progress: latestProgressRef.current, board: getSimplifiedBoard() };
+                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers });
+                 setShowEliminationScreen(true);
+            };
+
+            const handleFinish = async (finalProgress) => {
+                 const myIdx = roomPlayersRef.current.findIndex(p => p.uid === user.uid);
+                 if (myIdx === -1) return;
+                 const updatedPlayers = [...roomPlayersRef.current];
+                 updatedPlayers[myIdx] = { ...updatedPlayers[myIdx], progress: finalProgress, finished: true, finishTime: isSurvival ? survivalTimeRef.current : timer, board: getSimplifiedBoard() };
+                 const rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: isSurvival ? survivalTimeRef.current : timer }) };
+                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers, ...rankingsUpdate });
+                 setShowFinishedScreen(true);
+            };
 
             const playDropSound = () => {
                 const audio = new Audio('https://uploaded-confirm-tap-394001-2e6ddb51-7893-4a0b-90f7-a548c267b2d2.s3.us-east-1.amazonaws.com/confirm-tap-394001.mp3');
-                audio.volume = 0.5;
-                audio.play().catch(e => console.error("Audio play failed:", e));
+                audio.volume = 0.5; audio.play().catch(() => {});
             };
 
             const executeDrop = (pieceId, source, srcSlot, targetType, targetIndex = null) => {
-                 if (isFrozen) return; // Cannot drop if frozen
+                 if (isFrozen || myEliminatedRef.current) return; 
                  const pieceObj = allPiecesRef.current[pieceId];
                  if (!pieceObj) return;
+                 
                  if (targetType === 'slot') {
                      if (boardState[targetIndex]) return; 
-                     
                      playDropSound();
 
                      setBoardState(prev => {
@@ -738,7 +875,19 @@
                          return newState;
                      });
                      if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
-                 } else if (targetType === 'bank') {
+             
+             if (isSurvival) {
+                 if (pieceId === targetIndex) {
+                     // FIX EXPLOIT: Controlliamo se questo specifico pezzo ha già assegnato tempo in precedenza
+                     if (!scoredPiecesRef.current.has(pieceId)) {
+                         setSurvivalTime(t => t + 3);
+                         scoredPiecesRef.current.add(pieceId); // Segna il pezzo come "già usato per fare punti"
+                     }
+                 } else {
+                     setSurvivalTime(t => Math.max(0, t - 1));
+                 }
+             }
+         } else if (targetType === 'bank') {
                      if (source === 'bank') return;
                      setBankPieces(prev => [...prev, pieceId]);
                      setBoardState(prev => { const newState = { ...prev }; delete newState[srcSlot]; return newState; });
@@ -746,191 +895,240 @@
                  setHoveredSlot(null);
             };
 
-            const toggleAttackMode = (type) => {
-                if (selectedAttack === type) setSelectedAttack(null);
-                else setSelectedAttack(type);
-            };
+            const toggleAttackMode = (type) => setSelectedAttack(prev => prev === type ? null : type);
 
             const launchAttack = async (targetUid) => {
                 if (!selectedAttack) return;
-                
-                // Determine cooldown based on type
-                if (selectedAttack === 'ice') setIceCooldown(45);
-                if (selectedAttack === 'fog') setFogCooldown(60);
-
                 const type = selectedAttack;
-                setSelectedAttack(null); // Reset mode immediately after firing
+                if (type === 'ice') setIceCooldown(45);
+                if (type === 'fog') setFogCooldown(60);
+                setSelectedAttack(null); 
 
-                // Update Firebase target
-                const updatedPlayers = room.players.map(p => {
+                const updatedPlayers = roomPlayersRef.current.map(p => {
                     if (p.uid === targetUid) {
                         let newEffects = { ...p.effects };
                         const now = Date.now();
-                        if (type === 'ice') newEffects.frozenUntil = now + 5000; // 5s
-                        if (type === 'fog') newEffects.blindedUntil = now + 15000; // 15s
+                        if (type === 'ice') newEffects.frozenUntil = now + 5000; 
+                        if (type === 'fog') newEffects.blindedUntil = now + 15000; 
                         return { ...p, effects: newEffects };
                     }
                     return p;
                 });
-                
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers });
             };
 
-            const sortedPlayers = [...room.players].sort((a, b) => {
-                if (a.finished && b.finished) return a.finishTime - b.finishTime;
+            const sortedPlayers = [...roomPlayersRef.current].map(p => {
+                // Sincronizza visivamente il giocatore locale in tempo reale bypassando il ritardo di rete!
+                if (p.uid === user.uid) {
+                    return {
+                        ...p,
+                        timeLeft: isSurvival ? survivalTime : p.timeLeft,
+                        progress: latestProgressRef.current
+                    };
+                }
+                return p;
+            }).sort((a, b) => {
+                if (a.finished && b.finished) return isSurvival ? b.finishTime - a.finishTime : a.finishTime - b.finishTime;
                 if (a.finished) return -1; if (b.finished) return 1;
+                
+                if (isSurvival) {
+                    // In Sopravvivenza, ora vince chi ha messo più pezzi (progress)
+                    if (b.progress !== a.progress) return b.progress - a.progress;
+                    // In caso di parità di pezzi, sta sopra chi è ancora vivo o ha più tempo
+                    if (a.eliminated && !b.eliminated) return 1;
+                    if (!a.eliminated && b.eliminated) return -1;
+                    return b.timeLeft - a.timeLeft;
+                }
+                
+                if (a.eliminated && !b.eliminated) return 1;
+                if (!a.eliminated && b.eliminated) return -1;
                 return b.progress - a.progress;
             });
 
             const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
-            // Zoom Handlers
+            // Interazioni Touch / Mouse
             const handleWheel = (e) => {
                 if(e.ctrlKey) e.preventDefault(); 
-                const scaleFactor = 0.1;
-                const delta = -Math.sign(e.deltaY) * scaleFactor;
-                setTransform(prev => {
-                    const newScale = Math.max(0.5, Math.min(prev.scale + delta, 3));
-                    return { ...prev, scale: newScale };
-                });
+                const delta = -Math.sign(e.deltaY) * 0.1;
+                setTransform(prev => ({ ...prev, scale: Math.max(0.5, Math.min(prev.scale + delta, 3)) }));
             };
-
             const handleBoardTouchStart = (e) => {
                 if (e.touches.length === 2) {
                     setIsPanning(true);
-                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    setPinchDist(d);
+                    setPinchDist(Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY));
                 }
             };
-            
             const handleBoardTouchMove = (e) => {
                 if (e.touches.length === 2 && isPanning) {
                     e.preventDefault();
                     const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if (pinchDist) {
-                        const delta = d - pinchDist;
-                        setTransform(prev => {
-                            const newScale = Math.max(0.5, Math.min(prev.scale + delta * 0.005, 3));
-                            return { ...prev, scale: newScale };
-                        });
-                    }
+                    if (pinchDist) setTransform(prev => ({ ...prev, scale: Math.max(0.5, Math.min(prev.scale + (d - pinchDist) * 0.005, 3)) }));
                     setPinchDist(d);
                 }
             };
-            
             const resetZoom = () => setTransform({ x: 0, y: 0, scale: 1 });
 
-            // Dedicated Touch Start for pieces (fixes hold delay e permette scroll)
             const handlePieceTouchStart = (e, pieceId, source, slotIndex = null) => {
-                 e.stopPropagation(); // Stop board pan
+                 if (myEliminatedRef.current) return;
+                 e.stopPropagation(); 
                  const touch = e.touches[0];
                  
                  if (source === 'board') {
-                     // Sulla plancia prendiamo il pezzo immediatamente
                      if (e.cancelable) e.preventDefault();
                      setDragState({ pieceId, source, srcSlot: slotIndex, x: touch.clientX, y: touch.clientY });
                      return;
                  }
-
-                 // Nel bank, aspettiamo 150ms per capire se l'utente vuole scorrere o trascinare
-                 pendingDragRef.current = {
-                    pieceId, source, srcSlot: slotIndex, startX: touch.clientX, startY: touch.clientY
-                 };
-
+                 pendingDragRef.current = { pieceId, source, srcSlot: slotIndex, startX: touch.clientX, startY: touch.clientY };
                  touchTimerRef.current = setTimeout(() => {
                      if (pendingDragRef.current) {
-                         setDragState({
-                            pieceId: pendingDragRef.current.pieceId,
-                            source: pendingDragRef.current.source,
-                            srcSlot: pendingDragRef.current.srcSlot,
-                            x: pendingDragRef.current.startX,
-                            y: pendingDragRef.current.startY
-                         });
+                         setDragState({ pieceId: pendingDragRef.current.pieceId, source: pendingDragRef.current.source, srcSlot: pendingDragRef.current.srcSlot, x: pendingDragRef.current.startX, y: pendingDragRef.current.startY });
                          pendingDragRef.current = null;
-                         if (navigator.vibrate) navigator.vibrate(50); // Feedback aptico opzionale
+                         if (navigator.vibrate) navigator.vibrate(50); 
                      }
                  }, 150);
             };
 
-            // Robust Drop Handler for Touch
+            const isSpectating = !!spectatingUserId;
+
+            const getDisplayBoard = () => {
+                if (!isSpectating) return boardState;
+                const targetPlayer = room.players.find(p => p.uid === spectatingUserId);
+                if (!targetPlayer || !targetPlayer.board) return {};
+                const board = {};
+                Object.keys(targetPlayer.board).forEach(slot => {
+                    const pid = targetPlayer.board[slot];
+                    board[slot] = allPiecesRef.current[pid];
+                });
+                return board;
+            };
+
+            const displayBoard = getDisplayBoard();
+
             const handleTouchEndGlobal = (e) => {
-                // Cancella timer se l'utente rilascia prima che parta il drag
                 if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
                 pendingDragRef.current = null;
-
                 setIsPanning(false);
                 if (!dragState) return;
 
-                // Stop propagation to prevent ghost clicks
                 if(e.cancelable) e.preventDefault();
-
                 const t = e.changedTouches[0];
                 const target = document.elementFromPoint(t.clientX, t.clientY);
                 
                 let found = false;
                 let current = target;
-                
-                // Traverse up to find a valid drop target
                 while(current) {
                     if (current.dataset?.slotIndex !== undefined) {
                         executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'slot', parseInt(current.dataset.slotIndex));
-                        found = true; 
-                        break;
+                        found = true; break;
                     }
                     if (current.id === 'piece-bank') {
                         executeDrop(dragState.pieceId, dragState.source, dragState.srcSlot, 'bank');
-                        found = true; 
-                        break;
+                        found = true; break;
                     }
                     current = current.parentElement;
                 }
+                
+                // Penalità caduta nel vuoto
+                if (!found && isSurvival) {
+                    setSurvivalTime(val => {
+                        const newT = Math.max(0, val - 1);
+                        if (newT === 0 && !myEliminatedRef.current) { myEliminatedRef.current = true; setIsEliminated(true); handleElimination(); }
+                        return newT;
+                    });
+                }
+                
                 setDragState(null); 
                 setHoveredSlot(null);
             };
 
+            // Novità: Controllo se TUTTI i giocatori hanno finito o sono stati eliminati
+            const allPlayersDone = room.players.length > 0 && room.players.every(p => p.finished || p.eliminated);
+
             return (
                 <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row h-screen overflow-hidden" 
                      onTouchMove={(e) => {
-                        // Distinguiamo tra scroll nativo della lista e movimento di trascinamento
                         if (pendingDragRef.current && !dragState) {
                             const t = e.touches[0];
-                            const dx = Math.abs(t.clientX - pendingDragRef.current.startX);
-                            const dy = Math.abs(t.clientY - pendingDragRef.current.startY);
-                            if (dx > 10 || dy > 10) {
-                                // È un movimento rapido (swipe): annulliamo il drag per lasciar scorrere
-                                clearTimeout(touchTimerRef.current);
-                                pendingDragRef.current = null;
+                            if (Math.abs(t.clientX - pendingDragRef.current.startX) > 10 || Math.abs(t.clientY - pendingDragRef.current.startY) > 10) {
+                                clearTimeout(touchTimerRef.current); pendingDragRef.current = null;
                             }
                             return; 
                         }
-
                         if (!dragState) return; 
-                        
-                        // Blocchiamo lo scroll nativo del browser mentre stiamo trascinando un pezzo
                         if (e.cancelable) e.preventDefault(); 
-                        
                         const t = e.touches[0];
                         setDragState(prev => ({ ...prev, x: t.clientX, y: t.clientY }));
-                        
                         const target = document.elementFromPoint(t.clientX, t.clientY);
-                        let current = target;
-                        let foundSlot = null;
+                        let current = target; let foundSlot = null;
                          while(current) {
-                            if (current.dataset?.slotIndex !== undefined) {
-                                foundSlot = parseInt(current.dataset.slotIndex);
-                                break;
-                            }
+                            if (current.dataset?.slotIndex !== undefined) { foundSlot = parseInt(current.dataset.slotIndex); break; }
                             current = current.parentElement;
                         }
-                        if (foundSlot !== null) setHoveredSlot(foundSlot);
-                        else setHoveredSlot(null);
+                        setHoveredSlot(foundSlot !== null ? foundSlot : null);
                      }}
                      onTouchEnd={handleTouchEndGlobal}
                 >
-
-                    {/* Attack Overlays */}
-                    {isFrozen && <div className="effect-ice">CONGELATO!</div>}
+                    {/* Overlays */}
+                    {isFrozen && !isSpectating && <div className="effect-ice">CONGELATO!</div>}
                     
+                    {isEliminated && showEliminationScreen && !allPlayersDone && (
+                        <div className="effect-eliminated">
+                            <span className="text-7xl mb-4">💀</span>
+                            <span className="text-4xl font-black text-white tracking-widest drop-shadow-lg">ELIMINATO</span>
+                            <span className="text-gray-300 mt-2">Il tuo tempo è scaduto!</span>
+                            <button onClick={() => setShowEliminationScreen(false)} className="mt-8 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-white font-bold backdrop-blur-md transition flex items-center gap-2 border border-white/30 shadow-xl hover:scale-105">
+                                <span className="text-xl">👁️</span> Entra Modalità Spettatore
+                            </button>
+                        </div>
+                    )}
+
+                    {isFinished && showFinishedScreen && !allPlayersDone && (
+                        <div className="absolute inset-0 z-[60] bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm p-4">
+                            <span className="text-7xl mb-4">🏆</span>
+                            <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 tracking-widest drop-shadow-lg text-center animate-pulse">COMPLETATO!</span>
+                            <span className="text-gray-300 mt-4 text-xl text-center">In attesa degli altri giocatori...</span>
+                            <button onClick={() => setShowFinishedScreen(false)} className="mt-8 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-white font-bold backdrop-blur-md transition flex items-center gap-2 border border-white/30 shadow-xl hover:scale-105">
+                                <span className="text-xl">👁️</span> Entra Modalità Spettatore
+                            </button>
+                        </div>
+                    )}
+                    
+                    {spectatingUserId && (
+                        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[70] bg-indigo-900/90 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold shadow-lg flex items-center gap-2 md:gap-4 backdrop-blur-md border border-indigo-500 text-sm md:text-base w-max max-w-[90vw]">
+                            <span className="animate-pulse text-red-400 whitespace-nowrap">🔴 REC</span>
+                            <span className="truncate">Guardando: {room.players.find(p => p.uid === spectatingUserId)?.name}</span>
+                            <button onClick={() => setSpectatingUserId(null)} className="ml-2 bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-full text-xs whitespace-nowrap shadow-md">Chiudi</button>
+                        </div>
+                    )}
+
+                    {allPlayersDone && (
+                        <div className="absolute inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                            <h2 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-8 animate-pulse text-center">
+                                PARTITA TERMINATA!
+                            </h2>
+                            <div className="glass-panel p-6 rounded-2xl w-full max-w-md space-y-3 mb-8 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                                {sortedPlayers.map((p, idx) => (
+                                    <div key={p.uid} className={`flex justify-between items-center p-3 rounded-lg border ${idx === 0 ? 'bg-indigo-900/50 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-slate-800/80 border-slate-700'}`}>
+                                        <span className="font-bold text-lg">{idx === 0 ? '🏆 ' : ''}{idx+1}. {p.name}</span>
+                                        <div className="text-right flex flex-col items-end">
+                                            {isSurvival ? (
+                                                p.eliminated ? <span className="text-red-500 font-mono text-sm">Eliminato ({p.progress}%)</span> :
+                                                <span className="text-yellow-400 font-mono text-sm">Sopravvissuto! ({p.progress}%)</span>
+                                            ) : (
+                                                p.finished ? <span className="text-yellow-400 font-mono text-sm">{formatTime(p.finishTime)}</span> : 
+                                                <span className="text-gray-400 font-mono text-sm">Incompleto ({p.progress}%)</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button onClick={onLeave} className="bg-gradient-to-r from-purple-600 to-indigo-600 px-10 py-4 rounded-xl font-bold text-xl shadow-lg hover:scale-105 transition">
+                                Torna alla Lobby
+                            </button>
+                        </div>
+                    )}
+
                     {dragState && (
                         <div style={{ position: 'fixed', left: dragState.x, top: dragState.y, width: '70px', height: '70px', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 9999 }}>
                             <PuzzlePieceSVG shape={allPiecesRef.current[dragState.pieceId].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[dragState.pieceId].row} col={allPiecesRef.current[dragState.pieceId].col} cols={diff.cols} rows={diff.rows} isPlaced={false} svgAlign={config.svgAlign || "none"} />
@@ -948,12 +1146,16 @@
                         <div className="p-3 border-b border-slate-700 space-y-2">
                              <div className="flex justify-between items-center">
                                  <div>
-                                    <span className="text-xs text-gray-400 uppercase font-bold tracking-wider block">Tempo</span>
-                                    <span className="font-mono text-yellow-400 font-bold text-xl">{formatTime(timer)}</span>
+                                    <span className={`text-xs uppercase font-bold tracking-wider block ${isSurvival ? (survivalTime <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-400') : 'text-gray-400'}`}>
+                                        {isSurvival ? 'Tempo Rimanente' : 'Tempo'}
+                                    </span>
+                                    <span className={`font-mono font-bold text-xl ${isSurvival ? (survivalTime <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-400') : 'text-yellow-400'}`}>
+                                        {isSurvival ? `${survivalTime}s` : formatTime(timer)}
+                                    </span>
                                  </div>
                                  <div className="flex gap-2">
                                      <button onClick={resetZoom} className="bg-slate-700 text-xs px-2 py-1 rounded text-gray-300">Reset View</button>
-                                     <button onClick={onLeave} className="bg-red-600/50 hover:bg-red-600 text-xs px-2 py-1 rounded text-white font-bold">Abbandona</button>
+                                     <button onClick={onLeave} className="bg-red-600/50 hover:bg-red-600 text-xs px-2 py-1 rounded text-white font-bold">Esci</button>
                                  </div>
                              </div>
                             
@@ -963,122 +1165,131 @@
                                     const id = bankPieces[Math.floor(Math.random()*bankPieces.length)];
                                     executeDrop(id, 'bank', null, 'slot', id);
                                     setMagicCooldown(120);
-                                }}} disabled={magicCooldown > 0 || bankPieces.length===0} className={`p-2 rounded-lg font-bold text-xs transition ${magicCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
+                                }}} disabled={magicCooldown > 0 || bankPieces.length===0 || isSpectating} className={`p-2 rounded-lg font-bold text-xs transition ${magicCooldown > 0 || isSpectating ? 'bg-slate-700 text-gray-500' : 'bg-purple-600 text-white'}`}>🪄 {magicCooldown > 0 ? magicCooldown : 'Magic'}</button>
                             </div>
 
-                             {/* Offensive Powers */}
-                             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
-                                <button 
-                                    onClick={() => toggleAttackMode('ice')} 
-                                    disabled={iceCooldown > 0} 
-                                    className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
-                                        selectedAttack === 'ice' ? 'bg-cyan-500 ring-2 ring-white animate-pulse' : 
-                                        iceCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-cyan-600 text-white'
-                                    }`}>
-                                    <span>{selectedAttack === 'ice' ? 'Scegli...' : '❄️ Ghiaccio'}</span>
-                                    {iceCooldown > 0 && <span>{iceCooldown}s</span>}
-                                </button>
-                                <button 
-                                    onClick={() => toggleAttackMode('fog')} 
-                                    disabled={fogCooldown > 0} 
-                                    className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${
-                                        selectedAttack === 'fog' ? 'bg-gray-400 ring-2 ring-white animate-pulse text-black' : 
-                                        fogCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-gray-500 text-white'
-                                    }`}>
-                                    <span>{selectedAttack === 'fog' ? 'Scegli...' : '☁️ Nebbia'}</span>
-                                    {fogCooldown > 0 && <span>{fogCooldown}s</span>}
-                                </button>
-                            </div>
+                            {(isEliminated || isFinished) && !allPlayersDone ? (
+                                <div className="grid grid-cols-1 pt-2 border-t border-slate-700">
+                                    <div className="text-center text-xs text-blue-300 font-bold bg-blue-900/30 p-2 rounded-lg border border-blue-800">
+                                        Modalità Spettatore attiva.<br/>Clicca su 👁️ per guardare un giocatore.
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
+                                    <button onClick={() => toggleAttackMode('ice')} disabled={iceCooldown > 0} className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${selectedAttack === 'ice' ? 'bg-cyan-500 ring-2 ring-white animate-pulse' : iceCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-cyan-600 text-white'}`}>
+                                        <span>{selectedAttack === 'ice' ? 'Scegli...' : '❄️ Ghiaccio'}</span>{iceCooldown > 0 && <span>{iceCooldown}s</span>}
+                                    </button>
+                                    <button onClick={() => toggleAttackMode('fog')} disabled={fogCooldown > 0} className={`p-2 rounded-lg font-bold text-xs transition flex flex-col items-center ${selectedAttack === 'fog' ? 'bg-gray-400 ring-2 ring-white animate-pulse text-black' : fogCooldown > 0 ? 'bg-slate-700 text-gray-500' : 'bg-gray-500 text-white'}`}>
+                                        <span>{selectedAttack === 'fog' ? 'Scegli...' : '☁️ Nebbia'}</span>{fogCooldown > 0 && <span>{fogCooldown}s</span>}
+                                    </button>
+                                </div>
+                            )}
                             {selectedAttack && <div className="text-center text-xs text-yellow-300 font-bold animate-bounce">Clicca un avversario!</div>}
                         </div>
 
                         {/* Leaderboard */}
                         <div className="p-2 space-y-1 overflow-y-auto max-h-20 md:max-h-40 border-b border-slate-700 bg-slate-900/40">
                              {sortedPlayers.map((p, idx) => {
-                                 const isTargetable = selectedAttack && p.uid !== user.uid;
+                                 const isMyPlayerDone = isFinished || isEliminated;
+                                 const isTargetable = selectedAttack && p.uid !== user.uid && !p.eliminated && !p.finished && !isMyPlayerDone;
+                                 const isSpectatable = isMyPlayerDone && !p.finished && !p.eliminated && p.uid !== user.uid;
+                                 
                                  return (
-                                    <div 
-                                        key={p.uid} 
-                                        onClick={() => { if(isTargetable) launchAttack(p.uid); }}
+                                    <div key={p.uid} onClick={() => { 
+                                            if(isTargetable) launchAttack(p.uid); 
+                                            else if(isSpectatable) setSpectatingUserId(p.uid);
+                                        }}
                                         className={`flex justify-between items-center text-[10px] md:text-xs p-1.5 rounded transition
                                             ${p.uid === user.uid ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30' : 'bg-slate-800/40'}
                                             ${isTargetable ? 'cursor-pointer hover:bg-red-500/30 ring-2 ring-red-500 scale-[1.02]' : ''}
+                                            ${isSpectatable ? 'cursor-pointer hover:bg-blue-500/30 ring-1 ring-blue-500/50' : ''}
+                                            ${p.eliminated ? 'opacity-50 grayscale' : ''}
+                                            ${spectatingUserId === p.uid ? 'bg-blue-900/50 ring-2 ring-blue-400' : ''}
                                         `}>
                                         <div className="flex items-center gap-1 overflow-hidden">
                                             {isTargetable && <span className="text-lg animate-pulse">🎯</span>}
+                                            {isSpectatable && spectatingUserId !== p.uid && <span className="text-sm">👁️</span>}
+                                            {spectatingUserId === p.uid && <span className="text-sm text-red-400 animate-pulse">🔴</span>}
                                             <span className="truncate w-24 font-bold">{idx+1}. {p.name}</span>
                                         </div>
-                                        {p.finished ? 
-                                            <span className="text-yellow-400 font-mono text-[10px]">🏆 {formatTime(p.finishTime)}</span> 
-                                            : 
-                                            <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden ml-2">
-                                                <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
-                                            </div>
-                                        }
+                                        
+                                        <div className="flex flex-col items-end">
+                                            {isSurvival ? (
+                                                p.eliminated ? <span className="text-red-500 font-mono text-[10px]">💀 Eliminato</span> :
+                                                p.finished ? <span className="text-yellow-400 font-mono text-[10px]">🏆 {p.progress}%</span> :
+                                                <span className="text-orange-400 font-mono text-[10px]">⏳ {p.timeLeft}s</span>
+                                            ) : (
+                                                p.finished ? <span className="text-yellow-400 font-mono text-[10px]">🏆 {formatTime(p.finishTime)}</span> : null
+                                            )}
+                                            {(!p.finished || isSurvival) && (
+                                                <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden mt-1">
+                                                    <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )
                              })}
                         </div>
                         
                         {/* Piece Bank */}
-                        <div id="piece-bank" className="flex-1 overflow-y-auto bg-slate-900/60 p-2 custom-scrollbar"
-                             onDragOver={(e) => e.preventDefault()}
-                             onDrop={(e) => {
-                                const id = parseInt(e.dataTransfer.getData("pieceId"));
-                                const src = e.dataTransfer.getData("source");
-                                if (src === 'board') executeDrop(id, 'board', parseInt(e.dataTransfer.getData("srcSlot")), 'bank');
-                             }}>
-                             <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
-                                {bankPieces.map((id) => (
-                                    <div key={id} draggable={!isFrozen} 
-                                         onContextMenu={(e) => e.preventDefault()}
-                                         style={{ touchAction: 'pan-y' }}
-                                         onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
-                                         onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, id, 'bank'); }} 
-                                         className={`aspect-square puzzle-piece-container relative ${isFrozen ? 'opacity-50 grayscale' : ''}`}>
-                                        <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} svgAlign={config.svgAlign || "none"} />
-                                    </div>
-                                ))}
+                        {isSpectating ? (
+                            <div className="flex-1 overflow-y-auto bg-slate-900/60 p-4 flex flex-col items-center justify-center text-center">
+                                <span className="text-4xl mb-2 animate-pulse">👁️</span>
+                                <span className="text-blue-400 font-bold text-lg">Spettatore</span>
+                                <span className="text-gray-500 text-xs mt-2">I pezzi non posizionati del giocatore sono nascosti. Vedi solo la sua plancia in tempo reale!</span>
                             </div>
-                        </div>
+                        ) : (
+                            <div id="piece-bank" className="flex-1 overflow-y-auto bg-slate-900/60 p-2 custom-scrollbar"
+                                 onDragOver={(e) => e.preventDefault()}
+                                 onDrop={(e) => {
+                                    const id = parseInt(e.dataTransfer.getData("pieceId"));
+                                    const src = e.dataTransfer.getData("source");
+                                    if (src === 'board') executeDrop(id, 'board', parseInt(e.dataTransfer.getData("srcSlot")), 'bank');
+                                 }}>
+                                 <div className="grid grid-cols-6 md:grid-cols-3 gap-1 pb-16">
+                                    {bankPieces.map((id) => (
+                                        <div key={id} draggable={!isFrozen && !isEliminated} 
+                                             onContextMenu={(e) => e.preventDefault()}
+                                             style={{ touchAction: 'pan-y' }}
+                                             onDragStart={(e) => { if(isFrozen || isEliminated) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", id); e.dataTransfer.setData("source", "bank"); }}
+                                             onTouchStart={(e) => { if(!isFrozen && !isEliminated) handlePieceTouchStart(e, id, 'bank'); }} 
+                                             className={`aspect-square puzzle-piece-container relative ${(isFrozen || isEliminated) ? 'opacity-50 grayscale' : ''}`}>
+                                            <PuzzlePieceSVG shape={allPiecesRef.current[id].shape} imageUrl={config.imageUrl} row={allPiecesRef.current[id].row} col={allPiecesRef.current[id].col} cols={diff.cols} rows={diff.rows} isPlaced={false} svgAlign={config.svgAlign || "none"} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Main Board */}
                     <div className="flex-1 bg-slate-950 flex items-center justify-center p-0 overflow-hidden relative"
-                         onWheel={handleWheel}
-                         onTouchStart={handleBoardTouchStart}
-                         onTouchMove={handleBoardTouchMove}
-                         onDoubleClick={resetZoom}
-                    >
-                        <div className={`relative shadow-2xl bg-slate-900/30 border border-white/5 transition-transform duration-100 ease-out origin-center ${isBlinded ? 'effect-fog' : ''}`}
-                             style={{ 
-                                 width: '100%', maxWidth: '85vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '85vh',
-                                 transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`
-                             }}>
+                         onWheel={handleWheel} onTouchStart={handleBoardTouchStart} onTouchMove={handleBoardTouchMove} onDoubleClick={resetZoom}>
+                        <div className={`relative shadow-2xl bg-slate-900/30 border border-white/5 transition-transform duration-100 ease-out origin-center ${isBlinded && !isSpectating ? 'effect-fog' : ''}`}
+                             style={{ width: '100%', maxWidth: '85vh', aspectRatio: `${diff.cols}/${diff.rows}`, maxHeight: '85vh', transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)` }}>
                             <div className="w-full h-full relative grid" style={{ gridTemplateColumns: `repeat(${diff.cols}, 1fr)`, gridTemplateRows: `repeat(${diff.rows}, 1fr)` }}>
                                 {Array.from({ length: diff.pieces }).map((_, index) => {
-                                    const piece = boardState[index];
+                                    const piece = displayBoard[index];
                                     const isHovered = hoveredSlot === index;
                                     return (
                                         <div key={index} data-slot-index={index} 
                                              className={`relative w-full h-full transition-colors duration-150 ${isHovered ? 'slot-highlight' : ''}`}
-                                             onDragOver={(e) => { if(!piece) { e.preventDefault(); setHoveredSlot(index); } }}
+                                             onDragOver={(e) => { if(!piece && !isSpectating) { e.preventDefault(); setHoveredSlot(index); } }}
                                              onDragLeave={() => setHoveredSlot(null)}
                                              onDrop={(e) => {
+                                                 if (isSpectating) return;
                                                  const id = parseInt(e.dataTransfer.getData("pieceId"));
                                                  const src = e.dataTransfer.getData("source");
                                                  executeDrop(id, src, src === 'board' ? parseInt(e.dataTransfer.getData("srcSlot")) : null, 'slot', index);
                                              }}>
                                             {!piece && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div></div>}
                                             {piece && (
-                                                <div 
-                                                    className="absolute animate-pop z-10" 
-                                                    style={{ width: '170%', height: '170%', top: '-35%', left: '-35%', touchAction: 'none' }}
-                                                    draggable={!isFrozen}
+                                                <div className="absolute animate-pop z-10" style={{ width: '170%', height: '170%', top: '-35%', left: '-35%', touchAction: 'none' }}
+                                                    draggable={!isFrozen && !isEliminated && !isSpectating}
                                                     onContextMenu={(e) => e.preventDefault()}
-                                                    onDragStart={(e) => { if(isFrozen) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
-                                                    onTouchStart={(e) => { if(!isFrozen) handlePieceTouchStart(e, piece.id, 'board', index); }}
-                                                >
+                                                    onDragStart={(e) => { if(isFrozen || isEliminated || isSpectating) {e.preventDefault(); return;} e.dataTransfer.setData("pieceId", piece.id); e.dataTransfer.setData("source", "board"); e.dataTransfer.setData("srcSlot", index); }}
+                                                    onTouchStart={(e) => { if(!isFrozen && !isEliminated && !isSpectating) handlePieceTouchStart(e, piece.id, 'board', index); }}>
                                                      <PuzzlePieceSVG shape={piece.shape} imageUrl={config.imageUrl} row={piece.row} col={piece.col} cols={diff.cols} rows={diff.rows} isPlaced={true} svgAlign={config.svgAlign || "none"} />
                                                 </div>
                                             )}
