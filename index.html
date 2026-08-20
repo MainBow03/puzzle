@@ -470,7 +470,7 @@
             };
 
             const modeLabel = GAME_MODES.find(m => m.id === room.config.gameMode)?.label || "Classica";
-            const survivalTimes = [30, 40, 50, 60, 70];
+            const survivalTimes = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
 
             return (
                 <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col md:flex-row gap-8 overflow-y-auto">
@@ -685,6 +685,7 @@
             const touchTimerRef = React.useRef(null);
             const pendingDragRef = React.useRef(null);
             const scoredPiecesRef = React.useRef(new Set()); // Novità: Registro dei pezzi che hanno già dato punteggio
+            const lastCorrectPlacementTimeRef = React.useRef(0); // Novità: Timer per combo in sopravvivenza
 
             const myPlayer = roomPlayersRef.current.find(p => p.uid === user.uid);
             const frozenUntil = myPlayer?.effects?.frozenUntil || 0;
@@ -872,22 +873,30 @@
                      setBoardState(prev => {
                          const newState = { ...prev, [targetIndex]: pieceObj };
                          if (source === 'board') delete newState[srcSlot];
-                         return newState;
-                     });
-                     if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
-             
-             if (isSurvival) {
-                 if (pieceId === targetIndex) {
-                     // FIX EXPLOIT: Controlliamo se questo specifico pezzo ha già assegnato tempo in precedenza
-                     if (!scoredPiecesRef.current.has(pieceId)) {
+                     return newState;
+                 });
+                 if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
+         
+         if (isSurvival) {
+             if (pieceId === targetIndex) {
+                 // FIX EXPLOIT: Controlliamo se questo specifico pezzo ha già assegnato tempo in precedenza
+                 if (!scoredPiecesRef.current.has(pieceId)) {
+                     const now = Date.now();
+                     // Se l'ultimo pezzo è stato messo meno di 5 secondi fa, combo +6!
+                     if (now - lastCorrectPlacementTimeRef.current <= 5000) {
+                         setSurvivalTime(t => t + 6);
+                     } else {
                          setSurvivalTime(t => t + 3);
-                         scoredPiecesRef.current.add(pieceId); // Segna il pezzo come "già usato per fare punti"
                      }
-                 } else {
-                     setSurvivalTime(t => Math.max(0, t - 1));
+                     lastCorrectPlacementTimeRef.current = now; // Aggiorniamo il tempo
+                     
+                     scoredPiecesRef.current.add(pieceId); // Segna il pezzo come "già usato per fare punti"
                  }
+             } else {
+                 setSurvivalTime(t => Math.max(0, t - 1));
              }
-         } else if (targetType === 'bank') {
+         }
+     } else if (targetType === 'bank') {
                      if (source === 'bank') return;
                      setBankPieces(prev => [...prev, pieceId]);
                      setBoardState(prev => { const newState = { ...prev }; delete newState[srcSlot]; return newState; });
