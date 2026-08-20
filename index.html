@@ -201,7 +201,8 @@
 
         const GAME_MODES = [
             { id: 'classic', label: 'Corsa Classica', icon: '⏱️', desc: 'Finisci per primo il puzzle!' },
-            { id: 'survival', label: 'Sopravvivenza', icon: '🔥', desc: 'Il timer scende! Incastra i pezzi per non farti eliminare.' }
+            { id: 'survival', label: 'Sopravvivenza', icon: '🔥', desc: 'Il timer scende! Completa il puzzle prima che scada il tempo.' },
+            { id: 'frenzy', label: 'Frenesia', icon: '⚡', desc: 'Il timer scende! Incastra i pezzi per guadagnare tempo, ma attento agli errori!' }
         ];
 
         const generatePath = (width, height, topTab, rightTab, bottomTab, leftTab) => {
@@ -286,7 +287,7 @@
                         uid: user.uid, name: nickname, progress: 0, 
                         finished: false, finishTime: null, effects: {}, 
                         selectedImageId: IMAGES[0].id, selectedTime: 60, eliminated: false, 
-                        timeLeft: config.gameMode === 'survival' ? 60 : 0 
+                        timeLeft: (config.gameMode === 'survival' || config.gameMode === 'frenzy') ? 60 : 0 
                     }],
                     rankings: [], createdAt: new Date().toISOString()
                 };
@@ -310,7 +311,7 @@
                                 uid: user.uid, name: nickname, progress: 0, 
                                 finished: false, finishTime: null, effects: {}, 
                                 selectedImageId: IMAGES[0].id, selectedTime: 60, eliminated: false, 
-                                timeLeft: data.config.gameMode === 'survival' ? 60 : 0 
+                                timeLeft: (data.config.gameMode === 'survival' || data.config.gameMode === 'frenzy') ? 60 : 0 
                             })
                         });
                     }
@@ -471,6 +472,7 @@
 
             const modeLabel = GAME_MODES.find(m => m.id === room.config.gameMode)?.label || "Classica";
             const survivalTimes = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+            const isCountdown = room.config.gameMode === 'survival' || room.config.gameMode === 'frenzy';
 
             return (
                 <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col md:flex-row gap-8 overflow-y-auto">
@@ -488,7 +490,7 @@
                                     <div key={p.uid} className="bg-slate-800/50 p-3 rounded-xl flex items-center justify-between border border-slate-700">
                                         <div className="flex flex-col">
                                             <span className="font-bold text-lg">{p.name} {p.uid === room.hostId && '👑'}</span>
-                                            {room.config.gameMode === 'survival' && <span className="text-xs text-orange-400">Tempo scelto: {p.selectedTime || 60}s</span>}
+                                            {isCountdown && <span className="text-xs text-orange-400">Tempo scelto: {p.selectedTime || 60}s</span>}
                                         </div>
                                         {pImg && <img src={pImg.url} className={`w-16 h-12 object-cover rounded shadow-md ${pImg.align || 'object-center'}`} />}
                                     </div>
@@ -508,7 +510,7 @@
                     </div>
 
                     <div className="glass-panel p-6 rounded-2xl flex-[2] flex flex-col">
-                        {room.config.gameMode === 'survival' && (
+                        {isCountdown && (
                             <div className="mb-8">
                                 <h3 className="text-xl font-bold mb-2 text-orange-400">Scegli il Tempo Iniziale</h3>
                                 <p className="text-gray-400 mb-4 text-sm">Più persone scelgono lo stesso tempo, più probabilità avrà di uscire!</p>
@@ -548,7 +550,7 @@
             
             const poolTimes = room.timePool || [60];
             const winnerTime = room.config.startingTime || 60;
-            const isSurvival = room.config.gameMode === 'survival';
+            const isCountdown = room.config.gameMode === 'survival' || room.config.gameMode === 'frenzy';
 
             React.useEffect(() => {
                 let speed = 50; let ticks = 0; const maxTicks = 40; let timeoutId;
@@ -593,7 +595,7 @@
                             <div className="mt-8 text-2xl font-bold text-white h-10 text-center">{currentImg?.name}</div>
                         </div>
 
-                        {isSurvival && (
+                        {isCountdown && (
                             <div className="flex flex-col items-center mt-4 md:mt-0">
                                 <div className={`flex items-center justify-center w-32 h-32 md:w-48 md:h-48 rounded-full border-8 transition-all duration-300 ${isSpinning ? 'border-orange-500/50 shadow-[0_0_50px_rgba(249,115,22,0.5)] bg-slate-800' : 'border-yellow-400 shadow-[0_0_100px_rgba(250,204,21,0.8)] bg-orange-600 scale-110 z-10'}`}>
                                     <span className="text-5xl md:text-7xl font-black text-white">{currentTime}s</span>
@@ -637,7 +639,8 @@
             if (!room) return null;
             const config = room.config;
             const diff = DIFFICULTIES[config.difficultyIdx];
-            const isSurvival = config.gameMode === 'survival';
+            const isCountdown = config.gameMode === 'survival' || config.gameMode === 'frenzy';
+            const isFrenzy = config.gameMode === 'frenzy';
             const startingTime = config.startingTime || 60;
 
             const [bankPieces, setBankPieces] = React.useState([]); 
@@ -684,8 +687,8 @@
 
             const touchTimerRef = React.useRef(null);
             const pendingDragRef = React.useRef(null);
-            const scoredPiecesRef = React.useRef(new Set()); // Novità: Registro dei pezzi che hanno già dato punteggio
-            const lastCorrectPlacementTimeRef = React.useRef(0); // Novità: Timer per combo in sopravvivenza
+            const scoredPiecesRef = React.useRef(new Set()); // Registro dei pezzi che hanno già dato punteggio
+            const lastCorrectPlacementTimeRef = React.useRef(0); // Timer per combo in sopravvivenza
 
             const myPlayer = roomPlayersRef.current.find(p => p.uid === user.uid);
             const frozenUntil = myPlayer?.effects?.frozenUntil || 0;
@@ -716,7 +719,7 @@
                 allPiecesRef.current = allP;
 
                 const savedState = localStorage.getItem(`puzzle_state_${roomId}`);
-                if (savedState && !isSurvival) { // Non ripristinare stato se è survival (per evitare trucchi)
+                if (savedState && !isCountdown) { // Non ripristinare stato se è survival/frenzy (per evitare trucchi)
                     try {
                         const parsed = JSON.parse(savedState);
                         const restoredBoard = {};
@@ -735,16 +738,16 @@
                     setBankPieces(initialBank.sort(() => Math.random() - 0.5));
                 }
                 
-                if (room.startTime && !isSurvival) {
+                if (room.startTime && !isCountdown) {
                     const start = new Date(room.startTime).getTime();
                     const now = new Date().getTime();
                     setTimer(Math.floor((now - start) / 1000));
                 }
 
-                // Game Loop Timer (Classic UP, Survival DOWN)
+                // Game Loop Timer (Classic UP, Survival/Frenzy DOWN)
                 const interval = setInterval(() => { 
                     if (!myFinishRef.current) {
-                        if (isSurvival) {
+                        if (isCountdown) {
                             if (myEliminatedRef.current) return;
                             setSurvivalTime(t => {
                                 const newT = t - 1;
@@ -766,10 +769,10 @@
             }, []);
 
             React.useEffect(() => {
-                if (!isSurvival && Object.keys(boardState).length >= 0) {
+                if (!isCountdown && Object.keys(boardState).length >= 0) {
                      localStorage.setItem(`puzzle_state_${roomId}`, JSON.stringify({ boardState }));
                 }
-            }, [boardState, roomId, isSurvival]);
+            }, [boardState, roomId, isCountdown]);
 
             // Cooldowns loop
             React.useEffect(() => {
@@ -808,7 +811,7 @@
                     
                     const currentP = roomPlayersRef.current[myIdx];
                     const newProg = latestProgressRef.current;
-                    const newTime = isSurvival ? survivalTimeRef.current : 0;
+                    const newTime = isCountdown ? survivalTimeRef.current : 0;
                     
                     const simplifiedBoard = {};
                     for (const [key, value] of Object.entries(boardStateRef.current)) {
@@ -818,7 +821,7 @@
                     const currentBoardStr = JSON.stringify(currentP.board || {});
                     
                     // Solo se i progressi, il tempo o la plancia sono cambiati
-                    if (currentP.progress !== newProg || (isSurvival && Math.abs(currentP.timeLeft - newTime) >= 2) || currentBoardStr !== newBoardStr) {
+                    if (currentP.progress !== newProg || (isCountdown && Math.abs(currentP.timeLeft - newTime) >= 2) || currentBoardStr !== newBoardStr) {
                         const updatedPlayers = [...roomPlayersRef.current];
                         updatedPlayers[myIdx] = { ...updatedPlayers[myIdx], progress: newProg, timeLeft: newTime, board: simplifiedBoard };
                         try {
@@ -827,7 +830,7 @@
                     }
                 }, 2500); // Aggiorna Firebase ogni 2.5 secondi
                 return () => clearInterval(syncInterval);
-            }, [isSurvival, appId, roomId, user.uid]);
+            }, [isCountdown, appId, roomId, user.uid]);
 
             const getSimplifiedBoard = () => {
                 const b = {};
@@ -850,8 +853,8 @@
                  const myIdx = roomPlayersRef.current.findIndex(p => p.uid === user.uid);
                  if (myIdx === -1) return;
                  const updatedPlayers = [...roomPlayersRef.current];
-                 updatedPlayers[myIdx] = { ...updatedPlayers[myIdx], progress: finalProgress, finished: true, finishTime: isSurvival ? survivalTimeRef.current : timer, board: getSimplifiedBoard() };
-                 const rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: isSurvival ? survivalTimeRef.current : timer }) };
+                 updatedPlayers[myIdx] = { ...updatedPlayers[myIdx], progress: finalProgress, finished: true, finishTime: isCountdown ? survivalTimeRef.current : timer, board: getSimplifiedBoard() };
+                 const rankingsUpdate = { rankings: arrayUnion({ uid: user.uid, name: nickname, time: isCountdown ? survivalTimeRef.current : timer }) };
                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId), { players: updatedPlayers, ...rankingsUpdate });
                  setShowFinishedScreen(true);
             };
@@ -873,30 +876,25 @@
                      setBoardState(prev => {
                          const newState = { ...prev, [targetIndex]: pieceObj };
                          if (source === 'board') delete newState[srcSlot];
-                     return newState;
-                 });
-                 if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
-         
-         if (isSurvival) {
-             if (pieceId === targetIndex) {
-                 // FIX EXPLOIT: Controlliamo se questo specifico pezzo ha già assegnato tempo in precedenza
-                 if (!scoredPiecesRef.current.has(pieceId)) {
-                     const now = Date.now();
-                     // Se l'ultimo pezzo è stato messo meno di 5 secondi fa, combo +6!
-                     if (now - lastCorrectPlacementTimeRef.current <= 5000) {
-                         setSurvivalTime(t => t + 6);
-                     } else {
-                         setSurvivalTime(t => t + 3);
+                         return newState;
+                     });
+                     if (source === 'bank') setBankPieces(prev => prev.filter(id => id !== pieceId));
+             
+                     if (isFrenzy) {
+                         if (pieceId === targetIndex) {
+                             if (!scoredPiecesRef.current.has(pieceId)) {
+                                 const now = Date.now();
+                                 if (now - lastCorrectPlacementTimeRef.current <= 5000) {
+                                     setSurvivalTime(t => t + 8);
+                                 } else {
+                                     setSurvivalTime(t => t + 4);
+                                 }
+                                 lastCorrectPlacementTimeRef.current = now;
+                                 scoredPiecesRef.current.add(pieceId);
+                             }
+                         }
                      }
-                     lastCorrectPlacementTimeRef.current = now; // Aggiorniamo il tempo
-                     
-                     scoredPiecesRef.current.add(pieceId); // Segna il pezzo come "già usato per fare punti"
-                 }
-             } else {
-                 setSurvivalTime(t => Math.max(0, t - 1));
-             }
-         }
-     } else if (targetType === 'bank') {
+                 } else if (targetType === 'bank') {
                      if (source === 'bank') return;
                      setBankPieces(prev => [...prev, pieceId]);
                      setBoardState(prev => { const newState = { ...prev }; delete newState[srcSlot]; return newState; });
@@ -927,23 +925,20 @@
             };
 
             const sortedPlayers = [...roomPlayersRef.current].map(p => {
-                // Sincronizza visivamente il giocatore locale in tempo reale bypassando il ritardo di rete!
                 if (p.uid === user.uid) {
                     return {
                         ...p,
-                        timeLeft: isSurvival ? survivalTime : p.timeLeft,
+                        timeLeft: isCountdown ? survivalTime : p.timeLeft,
                         progress: latestProgressRef.current
                     };
                 }
                 return p;
             }).sort((a, b) => {
-                if (a.finished && b.finished) return isSurvival ? b.finishTime - a.finishTime : a.finishTime - b.finishTime;
+                if (a.finished && b.finished) return isCountdown ? b.finishTime - a.finishTime : a.finishTime - b.finishTime;
                 if (a.finished) return -1; if (b.finished) return 1;
                 
-                if (isSurvival) {
-                    // In Sopravvivenza, ora vince chi ha messo più pezzi (progress)
+                if (isCountdown) {
                     if (b.progress !== a.progress) return b.progress - a.progress;
-                    // In caso di parità di pezzi, sta sopra chi è ancora vivo o ha più tempo
                     if (a.eliminated && !b.eliminated) return 1;
                     if (!a.eliminated && b.eliminated) return -1;
                     return b.timeLeft - a.timeLeft;
@@ -1038,20 +1033,10 @@
                     current = current.parentElement;
                 }
                 
-                // Penalità caduta nel vuoto
-                if (!found && isSurvival) {
-                    setSurvivalTime(val => {
-                        const newT = Math.max(0, val - 1);
-                        if (newT === 0 && !myEliminatedRef.current) { myEliminatedRef.current = true; setIsEliminated(true); handleElimination(); }
-                        return newT;
-                    });
-                }
-                
                 setDragState(null); 
                 setHoveredSlot(null);
             };
 
-            // Novità: Controllo se TUTTI i giocatori hanno finito o sono stati eliminati
             const allPlayersDone = room.players.length > 0 && room.players.every(p => p.finished || p.eliminated);
 
             return (
@@ -1121,7 +1106,7 @@
                                     <div key={p.uid} className={`flex justify-between items-center p-3 rounded-lg border ${idx === 0 ? 'bg-indigo-900/50 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-slate-800/80 border-slate-700'}`}>
                                         <span className="font-bold text-lg">{idx === 0 ? '🏆 ' : ''}{idx+1}. {p.name}</span>
                                         <div className="text-right flex flex-col items-end">
-                                            {isSurvival ? (
+                                            {isCountdown ? (
                                                 p.eliminated ? <span className="text-red-500 font-mono text-sm">Eliminato ({p.progress}%)</span> :
                                                 <span className="text-yellow-400 font-mono text-sm">Sopravvissuto! ({p.progress}%)</span>
                                             ) : (
@@ -1155,11 +1140,11 @@
                         <div className="p-3 border-b border-slate-700 space-y-2">
                              <div className="flex justify-between items-center">
                                  <div>
-                                    <span className={`text-xs uppercase font-bold tracking-wider block ${isSurvival ? (survivalTime <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-400') : 'text-gray-400'}`}>
-                                        {isSurvival ? 'Tempo Rimanente' : 'Tempo'}
+                                    <span className={`text-xs uppercase font-bold tracking-wider block ${isCountdown ? (survivalTime <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-400') : 'text-gray-400'}`}>
+                                        {isCountdown ? 'Tempo Rimanente' : 'Tempo'}
                                     </span>
-                                    <span className={`font-mono font-bold text-xl ${isSurvival ? (survivalTime <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-400') : 'text-yellow-400'}`}>
-                                        {isSurvival ? `${survivalTime}s` : formatTime(timer)}
+                                    <span className={`font-mono font-bold text-xl ${isCountdown ? (survivalTime <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-400') : 'text-yellow-400'}`}>
+                                        {isCountdown ? `${survivalTime}s` : formatTime(timer)}
                                     </span>
                                  </div>
                                  <div className="flex gap-2">
@@ -1223,14 +1208,14 @@
                                         </div>
                                         
                                         <div className="flex flex-col items-end">
-                                            {isSurvival ? (
+                                            {isCountdown ? (
                                                 p.eliminated ? <span className="text-red-500 font-mono text-[10px]">💀 Eliminato</span> :
                                                 p.finished ? <span className="text-yellow-400 font-mono text-[10px]">🏆 {p.progress}%</span> :
                                                 <span className="text-orange-400 font-mono text-[10px]">⏳ {p.timeLeft}s</span>
                                             ) : (
                                                 p.finished ? <span className="text-yellow-400 font-mono text-[10px]">🏆 {formatTime(p.finishTime)}</span> : null
                                             )}
-                                            {(!p.finished || isSurvival) && (
+                                            {(!p.finished || isCountdown) && (
                                                 <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden mt-1">
                                                     <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${p.progress}%`}}></div>
                                                 </div>
